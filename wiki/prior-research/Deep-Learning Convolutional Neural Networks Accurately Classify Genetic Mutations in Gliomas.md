@@ -1,6 +1,7 @@
 # Deep-Learning Convolutional Neural Networks Accurately Classify Genetic Mutations in Gliomas
+
 ## References
-* https://www.ajnr.org/content/early/2018/05/10/ajnr.A5667
+* https://www.ajnr.org/content/early/2018/05/10/ajnr.A5667 (Authored by Peter Chang)
 
 ## Abstract
 #### Purpose
