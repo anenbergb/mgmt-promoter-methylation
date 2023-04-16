@@ -8,4 +8,4 @@
 * Also conclude that the MGMT status is not correlated with a less aggressive tumor biology.
 * Only 85 patients in study
 
-<img src=artifacts/histology-table.png width=100% height=100%>
+![image](https://user-images.githubusercontent.com/5284312/232323574-caec3698-49f1-4f9c-86ec-c1088cbcdb3a.png)
