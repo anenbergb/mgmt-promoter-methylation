@@ -50,8 +50,7 @@
 - Dice similarity coefficient
 - Hausdorff distance 95%
 - Sensitivity and specificity – determine potential over or under segmentation of tumor sub-regions
-<!-- ![](artifacts/glioma-segmentation.png) -->
-<img src=artifacts/glioma-segmentation.png width=70% height=70%>
+![image](https://user-images.githubusercontent.com/5284312/232323918-6366ba69-4b3f-4777-ac14-c00f33436c0f.png)
 
 ## Task 2 (Radiogenomic Classification)
 ### Pre-processing
