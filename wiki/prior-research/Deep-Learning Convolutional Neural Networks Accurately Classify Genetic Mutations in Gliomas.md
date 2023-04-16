@@ -41,4 +41,19 @@ To train a convolutional neural network to independently predict underlying mole
 * Only patients with full preoperative MR imaging, including T2, FLAIR, and T1-weighted pre- and postcontrast acquisitions, were included in the analysis.
 ### Image Preprocessing
 
+## Identification of prototypical features corrrelating with MGMT Promoter Methylation
+
+Positive (methylated) features
+* nodular and heterogeneous enhancement
+* masslike FLAIR edema (larger lesions with a higher portion of nonenhancing tumor component) with cortical invovlement
+* presence of eccentric cyst
+* slight frontal and superficial temporal predominance
+
+Negative (unmethylated) features
+* thick enhancement with central necrosis
+* thin rim enhancement
+* solid enhancement
+* infiltrative edema patterns.
+* slight, deep, temporal predominance
+
 ![image](https://user-images.githubusercontent.com/5284312/232322794-717c0ca1-d587-4a09-ad48-10a9d945fe1a.png)
