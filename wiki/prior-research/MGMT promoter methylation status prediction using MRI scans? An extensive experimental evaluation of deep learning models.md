@@ -43,21 +43,23 @@ The model can localize the tumor region despite incorrect final prediction.
 The model detects abnormalities (it leverages information in the tumor region to make final prediction).
 
 Despite successfully localizing the tumor, the model cannot detect features within the tumor that could help discriminate MGMT promoter methylation status
-<img src=artifacts/ml-eval-salency.png width=70% height=70%>
+<!-- <img src=artifacts/ml-eval-salency.png width=70% height=70%> -->
+![image](https://user-images.githubusercontent.com/5284312/232323621-5722a4c1-98ef-4cb1-826d-c5f0c5036422.png)
+
 ### Feature Maps of CNN
 Even in the final layers, the positive/negative samples are entangled indicating that the model cannot find features that differentiate between the classes. However, the features look disentangled when the same model is trained to predict the malignancy of lung nodules. 
-<img src=artifacts/ml-eval-feature-maps.png width=70% height=70%>
+![image](https://user-images.githubusercontent.com/5284312/232323725-fd8dcab2-30b1-43e7-9bc2-dd9d429cff33.png)
+
 ### Probability Distribution of the Predictions
 * A well trained binary classifier should have a bimodal prediction probability distribution (probs close to 0 or 1)
 * The model ends up having a unimodal distribution, so it’s confused
+![image](https://user-images.githubusercontent.com/5284312/232323706-6d315e9d-321d-40f8-8b80-04862b1a3f2b.png)
 
-<img src=artifacts/ml-eval-prob-dist.png width=70% height=70%>
 ### Loss Landscape
 * BCE loss function
 * Random state = loss = 0.69
 * The model gets loss = 0.70, which means it’s still confused
-
-<img src=artifacts/ml-eval-loss-landscape.png width=70% height=70%>
+![image](https://user-images.githubusercontent.com/5284312/232323743-b74a5fb6-ffaa-4534-9aec-64c0124d9ebd.png)
 
 ## Limitations to Generalizability
 * Previous positive performance were likely because of limited dataset size and lack of independent dataset to test on.
