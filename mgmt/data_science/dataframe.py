@@ -42,7 +42,7 @@ def tumor_dataframe(data):
     tumor_df["tumor_area_max"] = np.max(tumor_area, axis=1)
     tumor_df["tumor_area_max_slice"] = np.argmax(tumor_area, axis=1)
     tumor_df = add_center_of_mass(tumor_df, data["tum"])
-
+    tumor_df = add_tumor_quadrant(tumor_df)
     return tumor_df
 
 
@@ -76,4 +76,30 @@ def add_center_of_mass(df, data_tumor):
     df["tumor_center_of_mass_slice"] = slice_centers
     df["tumor_center_of_mass_H"] = h_centers
     df["tumor_center_of_mass_W"] = w_centers
+    return df
+
+
+def add_tumor_quadrant(df, width=96):
+    """
+        II  |  I
+        ---------
+        III | IV
+
+    Image origin (0,0) is in top-left corner
+    """
+    quadrants = []
+    for i in range(len(df)):
+        h_center = df["tumor_center_of_mass_H"][i]
+        w_center = df["tumor_center_of_mass_W"][i]
+        if h_center < width / 2 and w_center < width / 2:
+            quadrants.append(2)
+        elif h_center < width / 2 and w_center >= width / 2:
+            quadrants.append(1)
+        elif h_center >= width / 2 and w_center < width / 2:
+            quadrants.append(3)
+        elif h_center >= width / 2 and w_center >= width / 2:
+            quadrants.append(4)
+        else:
+            print(i, h_center, w_center)
+    df["tumor_quadrant"] = quadrants
     return df

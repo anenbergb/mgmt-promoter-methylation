@@ -12,7 +12,7 @@ def figure_to_array(fig):
         np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1),
     )
-    arr = arr[..., :3] # HWC, C = RGB
+    arr = arr[..., :3]  # HWC, C = RGB
     io_buf.close()
     return arr
 

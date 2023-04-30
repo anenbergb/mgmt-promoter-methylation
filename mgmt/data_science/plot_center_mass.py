@@ -4,7 +4,9 @@ import sys
 from loguru import logger
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from tqdm import tqdm
+from PIL import Image
 
 from monai.visualize import blend_images
 from mgmt.data_science.dataframe import tumor_dataframe
@@ -18,11 +20,33 @@ modality2name = {
 }
 
 
-def plot_center_of_mass(ax, df, data, patient_i, modality="t2w", xlabel=False):
+def convert_to_255(image):
+    return np.array(image * 255.0, dtype=np.uint8)
+
+
+def add_color_border(img, border_width=10, color="green"):
+    """
+    Assume img is shape (H,W,C)
+    """
+    assert isinstance(img, np.ndarray)
+    height = img.shape[0]
+    width = img.shape[1]
+    frame_height = 2 * border_width + height
+    frame_width = 2 * border_width + width
+    framed_img = Image.new("RGB", (frame_height, frame_width), color)
+    framed_img = np.array(framed_img)
+    framed_img[border_width:-border_width, border_width:-border_width] = img
+    return framed_img
+
+
+def plot_center_of_mass(
+    ax, df, data, patient_i, modality="t2w", xlabel=False, border_width=4
+):
     row = df.iloc[patient_i]
     s = int(np.round(row["tumor_center_of_mass_slice"]))
     h = row["tumor_center_of_mass_H"]
     w = row["tumor_center_of_mass_W"]
+    methylation = row["methylation"]
 
     image = blend_images(
         # convert from BDHWC to HWC CHW where C=1, and D=48 3D depth channels
@@ -32,8 +56,12 @@ def plot_center_of_mass(ax, df, data, patient_i, modality="t2w", xlabel=False):
         cmap="hsv",
         rescale_arrays=True,
     )
-    ax.scatter([w], [h], marker="o", s=50, c="yellow")
-    ax.imshow(np.moveaxis(image, 0, -1))
+    image = np.moveaxis(image, 0, -1)  # CHW -> HWC
+    image255 = convert_to_255(image)
+    color = "green" if methylation else "red"
+    image_frame = add_color_border(image255, border_width=border_width, color=color)
+    ax.scatter([w + border_width], [h + border_width], marker="o", s=50, c="yellow")
+    ax.imshow(image_frame)
     title = f"Patient {patient_i} Slice {s}"
     if xlabel:
         ax.set_xlabel(title, fontsize=20)
@@ -124,6 +152,17 @@ def plot_center_of_mass_grid_all_modalities(
                 modname = modality2name[modality]
                 ax.set_title(modname, fontsize=22)
 
+    patches = [
+        mpatches.Patch(color="green", label="Methylated"),
+        mpatches.Patch(color="red", label="Not Methylated"),
+    ]
+    fig.legend(
+        handles=patches,
+        loc="upper right",
+        fontsize=22,
+        title="MGMT Promoter Methylation",
+        title_fontsize=22,
+    )
     fig.tight_layout()
     fig.subplots_adjust(top=0.90)
     if filename is not None:
@@ -156,7 +195,7 @@ def make_filename(output_dir, patient_range):
     return filename
 
 
-def plot_center_mass_grid(args):
+def main_plot_center_mass(args):
     logger.info(f"Loading dataset from {args.data}")
     data = load_data(args.data)
     logger.info("Successfully loaded dataset")
@@ -164,6 +203,8 @@ def plot_center_mass_grid(args):
     logger.info("Built tumor dataframe")
 
     num_patients = len(tumor_df)
+    if args.num_patients is not None:
+        num_patients = args.num_patients
     num_patients_per_image = 5
     size_factor = 5
 
@@ -232,5 +273,9 @@ if __name__ == "__main__":
         type=int,
         default=10,
     )
+    parser.add_argument(
+        "--num-patients",
+        type=int,
+    )
     args = parser.parse_args()
-    sys.exit(plot_center_mass_grid(args))
+    sys.exit(main_plot_center_mass(args))

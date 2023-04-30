@@ -23,6 +23,8 @@ setup(
         "ffmpeg-python",
         "tqdm",
         "types-tqdm",
+        "pillow",
+        "types-Pillow",
     ],
     extras_require={
         "notebook": [
