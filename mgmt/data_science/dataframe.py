@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy import ndimage
+from collections import defaultdict
 
 
 def tumor_dataframe(data):
@@ -103,3 +104,49 @@ def add_tumor_quadrant(df, width=96):
             print(i, h_center, w_center)
     df["tumor_quadrant"] = quadrants
     return df
+
+
+def tumor_slice_dataframe(data):
+    """
+    data is dictionary of tensors
+
+    key | value
+    -----------
+    t2w float32
+    fla float32
+    t1w float32
+    t1c float32
+    tum uint8
+    lbl int64
+
+    data["tum"].shape
+    (565, 48, 96, 96, 1)
+    N, D, H, W, C
+        - N(0) : patients
+        - D(1) : depth. # of slices
+        - H(2): height
+        - W(3) : width
+        - C(4) : channels per slice
+    """
+    dfs = {patient_i: defaultdict(list) for patient_i in range(data["tum"].shape[0])}
+
+    tumor_area = np.count_nonzero(data["tum"], axis=(2, 3, 4))
+    for patient_i in range(data["tum"].shape[0]):
+        for slice_i in range(data["tum"].shape[1]):
+            tum = data["tum"][patient_i, slice_i, ..., 0]
+            if tumor_area[patient_i, slice_i] == 0:
+                x_min, x_max, y_min, y_max = (0, 0, 0, 0)
+            else:
+                x_min, x_max = np.flatnonzero(np.max(tum, axis=0))[[0, -1]]
+                y_min, y_max = np.flatnonzero(np.max(tum, axis=1))[[0, -1]]
+            h = y_max - y_min
+            w = x_max - x_min
+
+            dfs[patient_i]["slice"].append(slice_i)
+            dfs[patient_i]["tumor_area"].append(tumor_area[patient_i, slice_i])
+            dfs[patient_i]["tumor_x_min"].append(x_min)
+            dfs[patient_i]["tumor_x_max"].append(x_max)
+            dfs[patient_i]["tumor_y_min"].append(y_min)
+            dfs[patient_i]["tumor_y_max"].append(y_max)
+            dfs[patient_i]["tumor_height"].append(h)
+            dfs[patient_i]["tumor_width"].append(w)
