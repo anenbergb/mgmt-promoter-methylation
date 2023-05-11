@@ -4,6 +4,8 @@ from scipy import ndimage
 from collections import defaultdict
 from loguru import logger
 
+from monai.apps.detection.transforms.box_ops import convert_mask_to_box
+
 
 def tumor_dataframe(data):
     """
@@ -49,6 +51,8 @@ def tumor_dataframe(data):
     tumor_df = add_tumor_quadrant(tumor_df)
     logger.info("tumor_dataframe: adding pixel statistics")
     tumor_df = add_pixel_stats(tumor_df, data)
+    logger.info("tumor_dataframe: adding center of mass box")
+    tumor_df = add_center_of_mass_box(tumor_df, data)
     return tumor_df
 
 
@@ -108,6 +112,39 @@ def add_tumor_quadrant(df, width=96):
         else:
             print(i, h_center, w_center)
     df["tumor_quadrant"] = quadrants
+    return df
+
+
+def mask_to_bbox(mask):
+    bboxes, bbox_classifications = convert_mask_to_box(mask, bg_label=0)
+    # bboxes are y1,x1,y2,x2
+    # convert to x1,y1,x2,y2
+    bboxes_xy = np.zeros_like(bboxes)
+    bboxes_xy[:, 0] = bboxes[:, 1]
+    bboxes_xy[:, 1] = bboxes[:, 0]
+    bboxes_xy[:, 2] = bboxes[:, 3]
+    bboxes_xy[:, 3] = bboxes[:, 2]
+    bboxes_xy = bboxes_xy.astype(int)
+    if len(bboxes_xy) == 0:
+        return np.array([0, 0, 0, 0], dtype=int)
+    return bboxes_xy[0]  # single box
+
+
+def add_center_of_mass_box(df, data):
+    cols = defaultdict(list)
+    for patient_i in range(data["tum"].shape[0]):
+        slice_i = int(np.round(df.tumor_center_of_mass_slice[patient_i]))
+        tum = data["tum"][patient_i, slice_i, ..., 0][None, :]
+        bbox = mask_to_bbox(tum)
+        cols["tumor_center_of_mass_x_min"].append(bbox[0])
+        cols["tumor_center_of_mass_y_min"].append(bbox[1])
+        cols["tumor_center_of_mass_x_max"].append(bbox[2])
+        cols["tumor_center_of_mass_y_max"].append(bbox[3])
+        cols["tumor_center_of_mass_width"].append(bbox[2] - bbox[0])
+        cols["tumor_center_of_mass_height"].append(bbox[3] - bbox[1])
+
+    for k, v in cols.items():
+        df[k] = v
     return df
 
 

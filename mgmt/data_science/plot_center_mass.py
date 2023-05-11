@@ -7,10 +7,12 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from tqdm import tqdm
 from PIL import Image
+import cv2
 
 from monai.visualize import blend_images
 from mgmt.data_science.dataframe import tumor_dataframe
 from mgmt.utils.ffmpeg import FfmpegWriter
+from mgmt.utils.crop import slide_box_within_border
 
 modality2name = {
     "fla": "FLAIR",  # "Fluid Attenuated\nInversion Recovery\n(FLAIR)",
@@ -40,12 +42,20 @@ def add_color_border(img, border_width=10, color="green"):
 
 
 def plot_center_of_mass(
-    ax, df, data, patient_i, modality="t2w", xlabel=False, border_width=4
+    ax,
+    df,
+    data,
+    patient_i,
+    modality="t2w",
+    xlabel=False,
+    border_width=4,
+    draw_center_mass_box=False,
+    crop_box_width=40,
 ):
     row = df.iloc[patient_i]
     s = int(np.round(row["tumor_center_of_mass_slice"]))
-    h = row["tumor_center_of_mass_H"]
-    w = row["tumor_center_of_mass_W"]
+    center_y = row["tumor_center_of_mass_H"]
+    center_x = row["tumor_center_of_mass_W"]
     methylation = row["methylation"]
 
     image = blend_images(
@@ -58,9 +68,44 @@ def plot_center_of_mass(
     )
     image = np.moveaxis(image, 0, -1)  # CHW -> HWC
     image255 = convert_to_255(image)
+    image255 = np.ascontiguousarray(image255)
+
+    # draw center of mass bounding box
+    if draw_center_mass_box:
+        xmin_ymin = (
+            row["tumor_center_of_mass_x_min"],
+            row["tumor_center_of_mass_y_min"],
+        )
+        xmax_ymax = (
+            row["tumor_center_of_mass_x_max"],
+            row["tumor_center_of_mass_y_max"],
+        )
+        image255 = cv2.rectangle(
+            image255, xmin_ymin, xmax_ymax, color=(255, 255, 0), thickness=1
+        )
+    if crop_box_width is not None:
+        # box centered at (w,h)
+        image_height = image255.shape[0]
+        image_width = image255.shape[1]
+        crop_x, crop_y = slide_box_within_border(
+            center_x, center_y, image_width, image_height, crop_box_width
+        )
+        width_half = int(crop_box_width / 2)
+        xmin_ymin = (crop_x - width_half, crop_y - width_half)
+        xmax_ymax = (crop_x + width_half, crop_y + width_half)
+        image255 = cv2.rectangle(
+            image255, xmin_ymin, xmax_ymax, color=(0, 255, 0), thickness=1
+        )
+
     color = "green" if methylation else "red"
     image_frame = add_color_border(image255, border_width=border_width, color=color)
-    ax.scatter([w + border_width], [h + border_width], marker="o", s=50, c="yellow")
+    ax.scatter(
+        [center_x + border_width],
+        [center_y + border_width],
+        marker="o",
+        s=50,
+        c="yellow",
+    )
     ax.imshow(image_frame)
     title = f"Patient {patient_i} Slice {s}"
     if xlabel:
@@ -78,6 +123,8 @@ def plot_center_of_mass_grid_one_modality(
     num_patients=None,
     patient_range=None,
     filename=None,
+    draw_center_mass_box=False,
+    crop_box_width=40,
 ):
     ncols = 3
     num_patients = len(df)
@@ -102,7 +149,15 @@ def plot_center_of_mass_grid_one_modality(
     for patient_i in patient_range:
         row = int(patient_i / ncols)
         col = patient_i % ncols
-        plot_center_of_mass(axes[row, col], df, data, patient_i, modality)
+        plot_center_of_mass(
+            axes[row, col],
+            df,
+            data,
+            patient_i,
+            modality,
+            draw_center_mass_box=draw_center_mass_box,
+            crop_box_width=crop_box_width,
+        )
     fig.tight_layout()
     fig.subplots_adjust(top=0.95)
     if filename is not None:
@@ -119,6 +174,8 @@ def plot_center_of_mass_grid_all_modalities(
     filename=None,
     dpi=100,
     size_factor=5,
+    draw_center_mass_box=False,
+    crop_box_width=40,
 ):
     ncols = 4
     num_patients = len(df)
@@ -145,7 +202,14 @@ def plot_center_of_mass_grid_all_modalities(
     for row, patient_i in enumerate(patient_range):
         for col, modality in enumerate(modality2name.keys()):
             plot_center_of_mass(
-                axes[row, col], df, data, patient_i, modality, xlabel=True
+                axes[row, col],
+                df,
+                data,
+                patient_i,
+                modality,
+                xlabel=True,
+                draw_center_mass_box=draw_center_mass_box,
+                crop_box_width=crop_box_width,
             )
             if row == 0:
                 ax = axes[row, col]
@@ -236,6 +300,8 @@ def main_plot_center_mass(args):
             filename=filename,
             dpi=args.dpi,
             size_factor=size_factor,
+            draw_center_mass_box=args.draw_center_mass_box,
+            crop_box_width=args.crop_box_width,
         )
         if video_writer is not None:
             video_writer.write(fig)
@@ -276,6 +342,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num-patients",
         type=int,
+    )
+    parser.add_argument(
+        "--draw-center-mass-box",
+        action="store_true",
+        help="Whether to draw a yellow box enscribing the tumor at the center of mass frame",
+    )
+    parser.add_argument(
+        "--crop-box-width",
+        type=int,
+        help="If provided, will draw a green box centered at the center of (x,y) location. "
+        "This box is useful to visualize the cropped image.",
     )
     args = parser.parse_args()
     sys.exit(main_plot_center_mass(args))
