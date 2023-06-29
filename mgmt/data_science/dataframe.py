@@ -1,10 +1,10 @@
+from collections import defaultdict
+
 import numpy as np
 import pandas as pd
-from scipy import ndimage
-from collections import defaultdict
 from loguru import logger
-
 from monai.apps.detection.transforms.box_ops import convert_mask_to_box
+from scipy import ndimage
 
 
 def tumor_dataframe(data):
@@ -77,9 +77,7 @@ def add_center_of_mass(df, data_tumor):
             h_centers.append(0)
             w_centers.append(0)
         else:
-            slice_center, h_center, w_center = ndimage.center_of_mass(
-                data_tumor[patient_i, ..., 0]
-            )
+            slice_center, h_center, w_center = ndimage.center_of_mass(data_tumor[patient_i, ..., 0])
             slice_centers.append(slice_center)
             h_centers.append(h_center)
             w_centers.append(w_center)

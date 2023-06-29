@@ -1,7 +1,8 @@
 import io
-import numpy as np
+
 import ffmpeg
 import matplotlib
+import numpy as np
 
 
 def figure_to_array(fig):
