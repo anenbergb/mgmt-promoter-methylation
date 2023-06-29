@@ -25,6 +25,15 @@ setup(
         "types-tqdm",
         "pillow",
         "types-Pillow",
+        "yacs",
+        "lightning",
+        "pytorch-lightning[extra]",
+        "torchmetrics",
+        "torchio",
+        "fvcore",
+        "iopath",
+        "seaborn",
+        "loguru",
     ],
     extras_require={
         "notebook": [
@@ -32,7 +41,8 @@ setup(
             "itkwidgets",
             "jupyter_contrib_nbextensions",
             "plotly",
+            "seaborn",
         ],
-        "dev": ["black", "mypy", "flake8"],
+        "dev": ["black", "mypy", "flake8", "isort"],
     },
 )

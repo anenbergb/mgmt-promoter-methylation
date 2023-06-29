@@ -1,18 +1,19 @@
 import argparse
 import os
 import sys
-from loguru import logger
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from tqdm import tqdm
-from PIL import Image
-import cv2
 
+import cv2
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
+from loguru import logger
 from monai.visualize import blend_images
+from PIL import Image
+from tqdm import tqdm
+
 from mgmt.data_science.dataframe import tumor_dataframe
-from mgmt.utils.ffmpeg import FfmpegWriter
 from mgmt.utils.crop import slide_box_within_border
+from mgmt.utils.ffmpeg import FfmpegWriter
 
 modality2name = {
     "fla": "FLAIR",  # "Fluid Attenuated\nInversion Recovery\n(FLAIR)",
@@ -80,22 +81,16 @@ def plot_center_of_mass(
             row["tumor_center_of_mass_x_max"],
             row["tumor_center_of_mass_y_max"],
         )
-        image255 = cv2.rectangle(
-            image255, xmin_ymin, xmax_ymax, color=(255, 255, 0), thickness=1
-        )
+        image255 = cv2.rectangle(image255, xmin_ymin, xmax_ymax, color=(255, 255, 0), thickness=1)
     if crop_box_width is not None:
         # box centered at (w,h)
         image_height = image255.shape[0]
         image_width = image255.shape[1]
-        crop_x, crop_y = slide_box_within_border(
-            center_x, center_y, image_width, image_height, crop_box_width
-        )
+        crop_x, crop_y = slide_box_within_border(center_x, center_y, image_width, image_height, crop_box_width)
         width_half = int(crop_box_width / 2)
         xmin_ymin = (crop_x - width_half, crop_y - width_half)
         xmax_ymax = (crop_x + width_half, crop_y + width_half)
-        image255 = cv2.rectangle(
-            image255, xmin_ymin, xmax_ymax, color=(0, 255, 0), thickness=1
-        )
+        image255 = cv2.rectangle(image255, xmin_ymin, xmax_ymax, color=(0, 255, 0), thickness=1)
 
     color = "green" if methylation else "red"
     image_frame = add_color_border(image255, border_width=border_width, color=color)
@@ -136,14 +131,11 @@ def plot_center_of_mass_grid_one_modality(
 
     nrows = int(np.ceil(num_patients / ncols))
     size_factor = 5
-    fig, axes = plt.subplots(
-        nrows, ncols, squeeze=False, figsize=(ncols * size_factor, nrows * size_factor)
-    )
+    fig, axes = plt.subplots(nrows, ncols, squeeze=False, figsize=(ncols * size_factor, nrows * size_factor))
 
     modname = modality2name[modality]
     fig.suptitle(
-        f"{modname} MRI with tumor segmentation and center point\n"
-        "Slice selected by center of mass",
+        f"{modname} MRI with tumor segmentation and center point\n" "Slice selected by center of mass",
         fontsize=20,
     )
     for patient_i in patient_range:
@@ -195,8 +187,7 @@ def plot_center_of_mass_grid_all_modalities(
     )
 
     fig.suptitle(
-        "MRI with tumor segmentation and center point\n"
-        "Slice selected by center of mass",
+        "MRI with tumor segmentation and center point\n" "Slice selected by center of mass",
         fontsize=24,
     )
     for row, patient_i in enumerate(patient_range):
@@ -290,9 +281,7 @@ def main_plot_center_mass(args):
 
     for pi in tqdm(range(0, num_patients, num_patients_per_image)):
         patient_range = list(range(pi, pi + num_patients_per_image))
-        filename = (
-            make_filename(args.output, patient_range) if video_writer is None else None
-        )
+        filename = make_filename(args.output, patient_range) if video_writer is None else None
         fig = plot_center_of_mass_grid_all_modalities(
             tumor_df,
             data,
