@@ -60,13 +60,13 @@ class Classifier(LightningModule):
         return self.net(x)
 
     def configure_optimizers(self):
-        optimizer = self.optimizer_class(self.net.parameters(), lr=self.hparams.learning_rate)
+        optimizer = self.optimizer_class(self.net.parameters(), lr=self.cfg.SOLVER.BASE_LR)
         return optimizer
 
     # Consider also configuring scheduler
 
     def prepare_batch(self, batch):
-        return batch[self.hparams.modality][torchio.DATA], batch["category_id"]
+        return batch[self.cfg.DATA.MODALITY][torchio.DATA], batch["category_id"]
 
     def infer_batch(self, batch):
         x, target = self.prepare_batch(batch)
@@ -80,6 +80,10 @@ class Classifier(LightningModule):
         logging:
             - https://lightning.ai/docs/pytorch/stable/extensions/logging.html
             - https://github.com/Lightning-AI/lightning/blob/master/src/lightning/pytorch/core/module.py#L344
+        
+            rank_zero_only: Whether the value will be logged only on rank 0.
+                This will prevent synchronization which would produce a deadlock
+                as not all processes would perform this log call.
         """
         preds, target = self.infer_batch(batch)
         loss = self.criterion(preds, target.to(torch.float))
@@ -94,7 +98,7 @@ class Classifier(LightningModule):
             on_step=False,
             on_epoch=True,
             prog_bar=True,
-            batch_size=self.hparams.batch_size,
+            batch_size=self.cfg.DATA.BATCH_SIZE,
         )
         return {"loss": loss, "preds": preds, "target": target}
 
@@ -116,7 +120,7 @@ class Classifier(LightningModule):
             on_step=False,
             on_epoch=True,
             prog_bar=True,
-            batch_size=self.hparams.batch_size,
+            batch_size=self.cfg.DATA.BATCH_SIZE,
         )
         return {"loss": loss, "preds": preds, "target": target}
 

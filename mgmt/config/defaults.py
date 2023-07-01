@@ -18,7 +18,7 @@ _C.TRAINER.strategy = "auto"
 _C.TRAINER.devices = "auto"
 _C.TRAINER.num_nodes = 1
 _C.TRAINER.precision = "32-true"
-_C.TRAINER.max_epochs = 10
+_C.TRAINER.max_epochs = 2
 # Useful when debugging to only train on portion of dataset
 _C.TRAINER.limit_train_batches = 1.0
 _C.TRAINER.limit_val_batches = 1.0
@@ -56,7 +56,7 @@ _C.DATA.NUM_WORKERS = 12
 _C.DATA.MODALITY = "fla"
 
 _C.SOLVER = CN()
-_C.SOLVER.LEARNING_RATE = 0.0001
+_C.SOLVER.BASE_LR = 0.0001
 
 _C.MODEL = CN()
 _C.MODEL.NAME = "resnet10"
