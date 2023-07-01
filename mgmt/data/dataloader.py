@@ -15,10 +15,10 @@ import pytorch_lightning as pl
 import seaborn as sns
 import torch
 import torchio as tio
+from fvcore.common.config import CfgNode
 from lightning.pytorch import LightningDataModule
 from loguru import logger
 from torch.utils.data import DataLoader
-from torchvision import transforms
 
 from mgmt.data.constants import MODALITIES, MODALITY2NAME
 from mgmt.data.subject_transforms import CropLargestTumor
@@ -121,7 +121,7 @@ def subjects_train_val_split(
 # IDEA: Could define an argument class that is passed to init
 
 
-class CAIDMDataModule(LightningDataModule):
+class DataModule(LightningDataModule):
     """
     DataModule basics
     - prepare_data (how to download, tokenize, etc…)
@@ -134,13 +134,7 @@ class CAIDMDataModule(LightningDataModule):
 
     def __init__(
         self,
-        filepath_npz: str,
-        patient_exclusion_csv: str,
-        train_val_ratio: float = 0.85,
-        batch_size: int = 16,
-        crop_dim: tuple[int, int, int] = (40, 40, 8),
-        shape_multiple: int = 8,
-        num_workers: int = 2,
+        cfg: CfgNode,
         # option to add an transform to concat different combinations
         # of modalities into a 'combined' tensor
     ):
@@ -150,13 +144,7 @@ class CAIDMDataModule(LightningDataModule):
             crop_dim: spatial dimensions W, H, D
         """
         super().__init__()
-        self.filepath_npz = filepath_npz
-        self.patient_exclusion_csv = patient_exclusion_csv
-        self.train_val_ratio = train_val_ratio
-        self.batch_size = batch_size
-        self.crop_dim = crop_dim
-        self.shape_multiple = shape_multiple
-        self.num_workers = num_workers
+        self.cfg = cfg
 
         self.subjects = None
         self.test_subjects = None
@@ -181,8 +169,8 @@ class CAIDMDataModule(LightningDataModule):
                 self.subjects.append(make_subject(data, patient_id))
 
     def download_data(self):
-        data = load_data(self.filepath_npz)
-        exs = load_patient_exclusion(self.patient_exclusion_csv)
+        data = load_data(self.cfg.DATA.FILEPATH_NPZ)
+        exs = load_patient_exclusion(self.cfg.DATA.PATIENT_EXCLUSION_CSV)
         return data, exs
 
     def setup(self, stage=None):
@@ -198,7 +186,7 @@ class CAIDMDataModule(LightningDataModule):
             stage: It is used to separate setup logic for trainer.{fit,validate,test,predict}.
         """
         generator = torch.Generator().manual_seed(42)
-        train_subjects, val_subjects = subjects_train_val_split(self.subjects, self.train_val_ratio, generator)
+        train_subjects, val_subjects = subjects_train_val_split(self.subjects, self.cfg.DATA.TRAIN_VAL_RATIO, generator)
 
         self.preprocess = self.get_preprocessing_transform()
         augment = self.get_augmentation_transform()
@@ -211,10 +199,10 @@ class CAIDMDataModule(LightningDataModule):
         # TODO: make this configurable
         preprocess = tio.Compose(
             [
-                CropLargestTumor(crop_dim=self.crop_dim),
+                CropLargestTumor(crop_dim=self.cfg.DATA.CROP_DIM),
                 # Consider using percentiles (0.5, 99.5) to control for possible outliers
                 tio.RescaleIntensity(out_min_max=(-1, 1), percentiles=(0, 100)),
-                tio.EnsureShapeMultiple(self.shape_multiple),
+                tio.EnsureShapeMultiple(self.cfg.DATA.SHAPE_MULTIPLE),
             ]
         )
         # tio.OneHot() - one-hot encoding could be applied to the tumor label tensor
@@ -250,8 +238,8 @@ class CAIDMDataModule(LightningDataModule):
         """
         return DataLoader(
             self.train_set,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
+            batch_size=self.cfg.DATA.BATCH_SIZE,
+            num_workers=self.cfg.DATA.NUM_WORKERS,
             pin_memory=True,
         )
 
@@ -259,4 +247,6 @@ class CAIDMDataModule(LightningDataModule):
         """
         https://lightning.ai/docs/pytorch/stable/data/datamodule.html#val-dataloader
         """
-        return DataLoader(self.val_set, batch_size=self.batch_size, num_workers=self.num_workers, pin_memory=True)
+        return DataLoader(
+            self.val_set, batch_size=self.cfg.DATA.BATCH_SIZE, num_workers=self.cfg.DATA.NUM_WORKERS, pin_memory=True
+        )

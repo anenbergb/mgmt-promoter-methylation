@@ -1,17 +1,18 @@
 import torch
 import torchio
 import torchmetrics
+from fvcore.common.config import CfgNode
 from lightning.pytorch import LightningDataModule, LightningModule, cli_lightning_logo
 from monai.networks.nets.resnet import resnet10
 from torch.nn import BCEWithLogitsLoss
+
+from mgmt.model import build_model
 
 
 class Classifier(LightningModule):
     def __init__(
         self,
-        learning_rate: float = 0.0001,
-        modality: str = "fla",
-        batch_size: int = 16,
+        cfg: CfgNode,
     ):
         """
 
@@ -25,24 +26,25 @@ class Classifier(LightningModule):
         torchmetrics
             - https://torchmetrics.readthedocs.io/en/stable/pages/lightning.html
             - https://torchmetrics.readthedocs.io/en/stable/classification/accuracy.html
+
+        submodules
+            - https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_advanced_3.html
+            - subclass_mode_model = True
+        OptimizerCallable and LRSchedulerCallable
+            - https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_advanced_3.html
         """
         super().__init__()
-        self.save_hyperparameters()
+        self.cfg = cfg
+
+        # TODO: decide how checkpointing will work.... do I need to save params here
+        # self.save_hyperparameters()
 
         # equivalent
         # self.save_hyperparameters("layer_1_dim", "learning_rate")
         # self.save_hyperparameters(ignore=[...])
 
-        self.net = resnet10(
-            pretrained=False,
-            progress=True,
-            spatial_dims=3,
-            n_input_channels=1,
-            conv1_t_size=7,
-            conv1_t_stride=1,
-            num_classes=1,
-            feed_forward=True,  # adds FC layer
-        )
+        self.net = build_model(cfg)
+
         # TODO: consider adding additional losses
         self.criterion = BCEWithLogitsLoss()
         self.optimizer_class = torch.optim.AdamW
@@ -51,6 +53,8 @@ class Classifier(LightningModule):
         self.val_acc = torchmetrics.classification.BinaryAccuracy()
         self.train_auc = torchmetrics.classification.BinaryAUROC()
         self.val_auc = torchmetrics.classification.BinaryAUROC()
+
+    # TODO: consider adding a from_config(cfg: cfgNode) constructor method
 
     def forward(self, x):
         return self.net(x)
