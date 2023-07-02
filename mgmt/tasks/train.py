@@ -112,5 +112,4 @@ For python-based LazyConfig, use "path.key=value".
 if __name__ == "__main__":
     args = get_args()
     cfg = setup_config(args)
-    sys.exit(0)
     sys.exit(main(cfg))

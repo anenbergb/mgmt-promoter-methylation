@@ -18,7 +18,7 @@ _C.TRAINER.strategy = "auto"
 _C.TRAINER.devices = "auto"
 _C.TRAINER.num_nodes = 1
 _C.TRAINER.precision = "32-true"
-_C.TRAINER.max_epochs = 2
+_C.TRAINER.max_epochs = 10
 # Useful when debugging to only train on portion of dataset
 _C.TRAINER.limit_train_batches = 1.0
 _C.TRAINER.limit_val_batches = 1.0
@@ -72,3 +72,6 @@ _C.MODEL.RESNET.no_max_pool = False
 _C.MODEL.RESNET.shortcut_type = "B"
 _C.MODEL.RESNET.widen_factor = 1.0
 _C.MODEL.RESNET.num_classes = 1
+
+_C.METRICS = CN()
+_C.METRICS.THRESHOLD = 0.5

@@ -3,10 +3,12 @@ import torchio
 import torchmetrics
 from fvcore.common.config import CfgNode
 from lightning.pytorch import LightningDataModule, LightningModule, cli_lightning_logo
-from monai.networks.nets.resnet import resnet10
 from torch.nn import BCEWithLogitsLoss
 
+from mgmt.data.subject_utils import get_subjects_from_batch
+from mgmt.data_science.plot_center_mass import add_color_border
 from mgmt.model import build_model
+from mgmt.visualize.subject import plot_subject
 
 
 class Classifier(LightningModule):
@@ -15,7 +17,6 @@ class Classifier(LightningModule):
         cfg: CfgNode,
     ):
         """
-
         Resnet10
             - https://docs.monai.io/en/stable/_modules/monai/networks/nets/resnet.html#ResNet
 
@@ -49,8 +50,8 @@ class Classifier(LightningModule):
         self.criterion = BCEWithLogitsLoss()
         self.optimizer_class = torch.optim.AdamW
 
-        self.train_acc = torchmetrics.classification.BinaryAccuracy()
-        self.val_acc = torchmetrics.classification.BinaryAccuracy()
+        self.train_acc = torchmetrics.classification.BinaryAccuracy(threshold=cfg.METRICS.THRESHOLD)
+        self.val_acc = torchmetrics.classification.BinaryAccuracy(threshold=cfg.METRICS.THRESHOLD)
         self.train_auc = torchmetrics.classification.BinaryAUROC()
         self.val_auc = torchmetrics.classification.BinaryAUROC()
 
@@ -70,8 +71,10 @@ class Classifier(LightningModule):
 
     def infer_batch(self, batch):
         x, target = self.prepare_batch(batch)
-        preds = self.net(x).flatten()
-        return preds, target
+        logits = self.net(x).flatten()
+        preds = torch.sigmoid(logits)
+        binary_preds = (preds > self.cfg.METRICS.THRESHOLD).to(torch.int64)
+        return logits, preds, binary_preds, target
 
     def training_step(self, batch, batch_idx):
         """
@@ -85,9 +88,9 @@ class Classifier(LightningModule):
                 This will prevent synchronization which would produce a deadlock
                 as not all processes would perform this log call.
         """
-        preds, target = self.infer_batch(batch)
-        loss = self.criterion(preds, target.to(torch.float))
-        self.train_acc(preds, target)
+        logits, preds, binary_preds, target = self.infer_batch(batch)
+        loss = self.criterion(logits, target.to(torch.float))
+        self.train_acc(binary_preds, target)
         self.train_auc(preds, target)
         self.log_dict(
             {
@@ -107,9 +110,9 @@ class Classifier(LightningModule):
     # https://github.com/Lightning-AI/lightning/issues/8105
 
     def validation_step(self, batch, batch_idx):
-        preds, target = self.infer_batch(batch)
-        loss = self.criterion(preds, target.to(torch.float))
-        self.val_acc(preds, target)
+        logits, preds, binary_preds, target = self.infer_batch(batch)
+        loss = self.criterion(logits, target.to(torch.float))
+        self.val_acc(binary_preds, target)
         self.val_auc(preds, target)
         self.log_dict(
             {
@@ -122,8 +125,27 @@ class Classifier(LightningModule):
             prog_bar=True,
             batch_size=self.cfg.DATA.BATCH_SIZE,
         )
+        if batch_idx == 0:
+            self.visualize_predictions(batch, binary_preds, target)
         return {"loss": loss, "preds": preds, "target": target}
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        y_hat, _ = self.infer_batch(batch)
-        return y_hat
+        preds, _, _, _ = self.infer_batch(batch)
+        return preds
+
+    def visualize_predictions(self, batch, preds, targets):
+        """
+        Tensorboard
+            - https://pytorch.org/docs/stable/tensorboard.html
+        """
+        batch_subjects = get_subjects_from_batch(batch)
+        for subject, pred, target in zip(batch_subjects, preds, targets):
+            image = plot_subject(
+                subject, show=False, return_fig=False, figsize=(6.4, 1.6), single_axis="axial", add_metadata=True
+            )
+            color = "green" if pred == target else "red"
+            image = add_color_border(image, color=color)
+            tensor = torch.from_numpy(image)  # HWC
+            self.logger.experiment.add_image(
+                f"val_subject_{subject.patient_id}", tensor, global_step=self.global_step, dataformats="HWC"
+            )
