@@ -80,7 +80,7 @@ class Classifier(LightningModule):
         logging:
             - https://lightning.ai/docs/pytorch/stable/extensions/logging.html
             - https://github.com/Lightning-AI/lightning/blob/master/src/lightning/pytorch/core/module.py#L344
-        
+
             rank_zero_only: Whether the value will be logged only on rank 0.
                 This will prevent synchronization which would produce a deadlock
                 as not all processes would perform this log call.

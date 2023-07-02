@@ -6,7 +6,7 @@ _C = CN()
 _C.SEED_EVERYTHING = 42
 _C.OUTPUT_DIR = "output"
 _C.CHECKPOINT = CN()
-_C.CHECKPOINT.PATH = "None" # "best", "last", "hpc", or path to checkpoint
+_C.CHECKPOINT.PATH = None  # "best", "last", "hpc", or path to checkpoint
 _C.CHECKPOINT.save_top_k = 10
 
 _C.SYSTEM = CN()
@@ -36,7 +36,7 @@ _C.TRAINER.benchmark = False
 # mode during evaluation (validate/test/predict)
 _C.TRAINER.inference_mode = True
 _C.TRAINER.use_distributed_sampler = True
-_C.TRAINER.profiler = "None"  # ("simple", "advanced")
+_C.TRAINER.profiler = None  # ("simple", "advanced")
 _C.TRAINER.detect_anomaly = False
 _C.TRAINER.barebones = False
 _C.TRAINER.sync_batchnorm = False
