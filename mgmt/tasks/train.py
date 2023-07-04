@@ -45,7 +45,7 @@ def get_callbacks(cfg: CfgNode) -> list[Callback]:
     checkpoint = ModelCheckpoint(
         dirpath=os.path.join(cfg.OUTPUT_DIR, "checkpoints"),
         filename="epoch={epoch}-step={step}-val_loss={val_loss:.2f}",
-        monitor="val_loss",
+        monitor="val/loss",
         save_top_k=cfg.CHECKPOINT.save_top_k,
         mode="min",
         auto_insert_metric_name=False,

@@ -96,15 +96,15 @@ class Classifier(LightningModule):
         loss = self.criterion(logits, target.to(torch.float))
         self.train_acc(binary_preds, target)
         self.train_auc(preds, target)
+        self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
         self.log_dict(
             {
-                "train_loss": loss,
-                "train_acc": self.train_acc,
-                "train_auc": self.train_auc,
+                "train/accuracy": self.train_acc,
+                "train/auc": self.train_auc,
             },
             on_step=False,
             on_epoch=True,
-            prog_bar=True,
+            prog_bar=False,
             batch_size=self.cfg.DATA.BATCH_SIZE,
         )
         return {"loss": loss, "preds": preds, "target": target}
@@ -118,17 +118,11 @@ class Classifier(LightningModule):
         loss = self.criterion(logits, target.to(torch.float))
         self.val_acc(binary_preds, target)
         self.val_auc(preds, target)
-        self.log_dict(
-            {
-                "val_loss": loss,
-                "val_acc": self.val_acc,
-                "val_auc": self.val_auc,
-            },
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-            batch_size=self.cfg.DATA.BATCH_SIZE,
-        )
+        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
+        self.log("val/accuracy", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
+        self.log("val/auc", loss, on_step=False, on_epoch=True, prog_bar=False, batch_size=self.cfg.DATA.BATCH_SIZE)
+
+        # only visualize every X epochs
         if batch_idx == 0:
             self.visualize_predictions(batch, binary_preds, target)
         # need a way to aggregate predictions, patient_id across batches
@@ -136,7 +130,7 @@ class Classifier(LightningModule):
 
         self.validation_step_outputs.append(
             {
-                "binary_preds": binary_preds.cpu().numpy(),
+                "preds": preds.cpu().numpy(),
                 "target": target.cpu().numpy(),
                 "patient_id": batch["patient_id"].cpu().numpy(),
             }
@@ -145,9 +139,9 @@ class Classifier(LightningModule):
         return {"loss": loss, "preds": preds, "target": target}
 
     def on_validation_epoch_end(self):
-        val_output_keys = ("binary_preds", "target", "patient_id")
+        val_output_keys = ("preds", "target", "patient_id")
         all_outputs = {key: np.concatenate([x[key] for x in self.validation_step_outputs]) for key in val_output_keys}
-        self.plot_classification_grid(all_outputs["binary_preds"], all_outputs["target"], all_outputs["patient_id"])
+        self.plot_classification_grid(all_outputs["preds"], all_outputs["target"], all_outputs["patient_id"])
         self.validation_step_outputs.clear()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
@@ -168,11 +162,11 @@ class Classifier(LightningModule):
             image = add_color_border(image, color=color)
             tensor = torch.from_numpy(image)  # HWC
             self.logger.experiment.add_image(
-                f"val_subject_{subject.patient_id}", tensor, global_step=self.global_step, dataformats="HWC"
+                f"val_subject/{subject.patient_id}", tensor, global_step=self.global_step, dataformats="HWC"
             )
 
-    def plot_classification_grid(self, binary_preds, target, patient_id):
-        grid = plot_classification_grid(binary_preds, target, patient_id)
+    def plot_classification_grid(self, preds, target, patient_id):
+        grid = plot_classification_grid(preds, target, patient_id)
         tensor = torch.from_numpy(grid)  # HWC
         self.logger.experiment.add_image(
             f"val_classification_grid", tensor, global_step=self.global_step, dataformats="HWC"

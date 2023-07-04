@@ -13,23 +13,24 @@ from monai.visualize import blend_images
 # )
 
 
-def plot_classification_grid(binary_preds: np.ndarray, target: np.ndarray, patient_id: np.ndarray) -> np.ndarray:
-    assert len(binary_preds) == len(target)
-    assert len(binary_preds) == len(patient_id)
+def plot_classification_grid(preds: np.ndarray, target: np.ndarray, patient_id: np.ndarray) -> np.ndarray:
+    assert len(preds) == len(target)
+    assert len(preds) == len(patient_id)
 
-    zipped = zip(binary_preds, target, patient_id)
-    zipped = sorted(zipped, key=lambda x: x[2])
+    errors = np.abs(preds - target)
+    errors_bucketed = np.digitize(errors, np.arange(0, 1.1, 0.1)) - 1  # 10 buckets
+    zipped = zip(patient_id, errors_bucketed, target)
+    zipped = sorted(zipped, key=lambda x: x[0])
 
-    width = int(np.ceil(np.sqrt(len(binary_preds))))
+    width = int(np.ceil(np.sqrt(len(preds))))
     grid = np.zeros((width, width), dtype=int)
-    cmap = colors.ListedColormap(["red", "green"])
+    cmap = colors.LinearSegmentedColormap.from_list("Custom", ["green", "white", "red"], N=10)
     fig, ax = plt.subplots()
-    for i, (binary_pred, tar, pid) in enumerate(zipped):
-        grid[i % width, i // width] = 1 if binary_pred == tar else 0
+    for i, (pid, error_bucket, tar) in enumerate(zipped):
+        grid[i // width, i % width] = error_bucket
         methyl = "(M)" if tar == 1 else ""
         text = f"{pid}{methyl}"
-        ax.text(i % width, i // width, text, ha="center", va="center", color="w")
-
+        ax.text(i % width, i // width, text, ha="center", va="center", color="black")
     ax.imshow(grid, cmap=cmap)
     ax.set_xticks([])
     ax.set_yticks([])
