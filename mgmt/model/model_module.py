@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torchio
 import torchmetrics
@@ -9,6 +10,7 @@ from mgmt.data.subject_utils import get_subjects_from_batch
 from mgmt.data_science.plot_center_mass import add_color_border
 from mgmt.model import build_model
 from mgmt.visualize.subject import plot_subject
+from mgmt.visualize.visualize import plot_classification_grid
 
 
 class Classifier(LightningModule):
@@ -54,6 +56,8 @@ class Classifier(LightningModule):
         self.val_acc = torchmetrics.classification.BinaryAccuracy(threshold=cfg.METRICS.THRESHOLD)
         self.train_auc = torchmetrics.classification.BinaryAUROC()
         self.val_auc = torchmetrics.classification.BinaryAUROC()
+
+        self.validation_step_outputs = []
 
     # TODO: consider adding a from_config(cfg: cfgNode) constructor method
 
@@ -127,19 +131,36 @@ class Classifier(LightningModule):
         )
         if batch_idx == 0:
             self.visualize_predictions(batch, binary_preds, target)
+        # need a way to aggregate predictions, patient_id across batches
+        # TODO: how to run visualize at end of the validation loop
+
+        self.validation_step_outputs.append(
+            {
+                "binary_preds": binary_preds.cpu().numpy(),
+                "target": target.cpu().numpy(),
+                "patient_id": batch["patient_id"].cpu().numpy(),
+            }
+        )
+
         return {"loss": loss, "preds": preds, "target": target}
+
+    def on_validation_epoch_end(self):
+        val_output_keys = ("binary_preds", "target", "patient_id")
+        all_outputs = {key: np.concatenate([x[key] for x in self.validation_step_outputs]) for key in val_output_keys}
+        self.plot_classification_grid(all_outputs["binary_preds"], all_outputs["target"], all_outputs["patient_id"])
+        self.validation_step_outputs.clear()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         preds, _, _, _ = self.infer_batch(batch)
         return preds
 
-    def visualize_predictions(self, batch, preds, targets):
+    def visualize_predictions(self, batch, binary_preds, targets):
         """
         Tensorboard
             - https://pytorch.org/docs/stable/tensorboard.html
         """
         batch_subjects = get_subjects_from_batch(batch)
-        for subject, pred, target in zip(batch_subjects, preds, targets):
+        for subject, pred, target in zip(batch_subjects, binary_preds, targets):
             image = plot_subject(
                 subject, show=False, return_fig=False, figsize=(6.4, 1.6), single_axis="axial", add_metadata=True
             )
@@ -149,3 +170,10 @@ class Classifier(LightningModule):
             self.logger.experiment.add_image(
                 f"val_subject_{subject.patient_id}", tensor, global_step=self.global_step, dataformats="HWC"
             )
+
+    def plot_classification_grid(self, binary_preds, target, patient_id):
+        grid = plot_classification_grid(binary_preds, target, patient_id)
+        tensor = torch.from_numpy(grid)  # HWC
+        self.logger.experiment.add_image(
+            f"val_classification_grid", tensor, global_step=self.global_step, dataformats="HWC"
+        )
