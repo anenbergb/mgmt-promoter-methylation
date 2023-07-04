@@ -11,6 +11,7 @@ from mgmt.data_science.plot_center_mass import add_color_border
 from mgmt.model import build_model
 from mgmt.visualize.subject import plot_subject
 from mgmt.visualize.visualize import plot_classification_grid
+from mgmt.utils.optimizer import build_optimizer
 
 
 class Classifier(LightningModule):
@@ -65,8 +66,30 @@ class Classifier(LightningModule):
         return self.net(x)
 
     def configure_optimizers(self):
+        """
+        Pytorch Lightning documentation
+            - https://lightning.ai/docs/pytorch/stable/common/optimization.html
+            - https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#configure-optimizers
+
+        Other optimizers
+            - https://github.com/huggingface/pytorch-image-models/blob/main/timm/scheduler/scheduler.py
+
+        """
         optimizer = self.optimizer_class(self.net.parameters(), lr=self.cfg.SOLVER.BASE_LR)
-        return optimizer
+
+        optimizer = build_optimizer(self.net.parameters(), self.cfg)
+        scheduler = build_lr_scheduler(optimizer, self.args)
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "epoch",
+                "frequency": 1,
+                "monitor": "val/loss",
+                "strict": True,
+            },
+        }
 
     # Consider also configuring scheduler
 

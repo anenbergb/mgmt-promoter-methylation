@@ -56,7 +56,21 @@ _C.DATA.NUM_WORKERS = 12
 _C.DATA.MODALITY = "fla"
 
 _C.SOLVER = CN()
+# Adam, AdamW
+_C.SOLVER.OPTIMIZER_NAME = "SGD"
+_C.SOLVER.SCHEDULER_NAME = "Cosine"  # or Linear
 _C.SOLVER.BASE_LR = 0.0001
+_C.SOLVER.WEIGHT_DECAY = 0.0005  # optimizer weight decay 5e-4
+
+_C.SOLVER.ADAM = CN()
+_C.SOLVER.ADAM.betas = [0.9, 0.999]
+_C.SOLVER.NADAM = CN()
+_C.SOLVER.NADAM.momentum_decay = 4e-3
+
+_C.SOLVER.SGD = CN()
+_C.SOLVER.SGD.momentum = 0.0  # 0.937
+_C.SOLVER.SGD.dampening = 0.0
+_C.SOLVER.SGD.nesterov = False
 
 _C.MODEL = CN()
 _C.MODEL.NAME = "resnet10"

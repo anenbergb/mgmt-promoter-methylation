@@ -39,8 +39,14 @@ def main(cfg):
 
 
 def get_callbacks(cfg: CfgNode) -> list[Callback]:
+    """
+
+    LearningRateMonitor
+        - https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.LearningRateMonitor.html
+    """
     # Maybe add EarlyStopping
-    lr_monitor = LearningRateMonitor(logging_interval="step")
+
+    lr_monitor = LearningRateMonitor(logging_interval="epoch")
     # maybe monitor the val accuracy rather than val loss
     checkpoint = ModelCheckpoint(
         dirpath=os.path.join(cfg.OUTPUT_DIR, "checkpoints"),
