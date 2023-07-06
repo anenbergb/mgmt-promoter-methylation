@@ -145,8 +145,10 @@ def plot_subject(
     fig.canvas.draw()
     data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep="")
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    close_fig = True
     if show:
         plt.show()
+        close_fig = False
     if return_fig:
         return fig
     if add_metadata:
@@ -157,6 +159,8 @@ def plot_subject(
             for x in (data, meta_im)
         ]
         data = np.concatenate(padded, axis=0)
+    if close_fig:
+        plt.close(fig)
     return data
 
 

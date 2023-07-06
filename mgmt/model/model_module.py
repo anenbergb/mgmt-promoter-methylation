@@ -9,15 +9,17 @@ from torch.nn import BCEWithLogitsLoss
 from mgmt.data.subject_utils import get_subjects_from_batch
 from mgmt.data_science.plot_center_mass import add_color_border
 from mgmt.model import build_model
+from mgmt.utils.lr_scheduler import build_lr_scheduler
+from mgmt.utils.optimizer import build_optimizer
 from mgmt.visualize.subject import plot_subject
 from mgmt.visualize.visualize import plot_classification_grid
-from mgmt.utils.optimizer import build_optimizer
 
 
 class Classifier(LightningModule):
     def __init__(
         self,
         cfg: CfgNode,
+        steps_per_epoch=50,
     ):
         """
         Resnet10
@@ -39,6 +41,7 @@ class Classifier(LightningModule):
         """
         super().__init__()
         self.cfg = cfg
+        self.steps_per_epoch = steps_per_epoch
 
         # TODO: decide how checkpointing will work.... do I need to save params here
         # self.save_hyperparameters()
@@ -51,7 +54,6 @@ class Classifier(LightningModule):
 
         # TODO: consider adding additional losses
         self.criterion = BCEWithLogitsLoss()
-        self.optimizer_class = torch.optim.AdamW
 
         self.train_acc = torchmetrics.classification.BinaryAccuracy(threshold=cfg.METRICS.THRESHOLD)
         self.val_acc = torchmetrics.classification.BinaryAccuracy(threshold=cfg.METRICS.THRESHOLD)
@@ -75,10 +77,8 @@ class Classifier(LightningModule):
             - https://github.com/huggingface/pytorch-image-models/blob/main/timm/scheduler/scheduler.py
 
         """
-        optimizer = self.optimizer_class(self.net.parameters(), lr=self.cfg.SOLVER.BASE_LR)
-
         optimizer = build_optimizer(self.net.parameters(), self.cfg)
-        scheduler = build_lr_scheduler(optimizer, self.args)
+        scheduler = build_lr_scheduler(optimizer, self.cfg, self.steps_per_epoch)
 
         return {
             "optimizer": optimizer,
@@ -86,6 +86,7 @@ class Classifier(LightningModule):
                 "scheduler": scheduler,
                 "interval": "epoch",
                 "frequency": 1,
+                # Metric to to monitor for schedulers like `ReduceLROnPlateau`
                 "monitor": "val/loss",
                 "strict": True,
             },
@@ -136,6 +137,14 @@ class Classifier(LightningModule):
     # I think train_step_end is only required if training with data parallel
     # https://github.com/Lightning-AI/lightning/issues/8105
 
+    # TODO: Not sure if I need to manually step
+    # def on_train_epoch_end(self):
+    #     sch = self.lr_schedulers()
+
+    #     # If the selected scheduler is a ReduceLROnPlateau scheduler.
+    #     if isinstance(sch, torch.optim.lr_scheduler.ReduceLROnPlateau):
+    #         sch.step(self.trainer.callback_metrics["val/loss"])
+
     def validation_step(self, batch, batch_idx):
         logits, preds, binary_preds, target = self.infer_batch(batch)
         loss = self.criterion(logits, target.to(torch.float))
@@ -145,11 +154,10 @@ class Classifier(LightningModule):
         self.log("val/accuracy", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
         self.log("val/auc", loss, on_step=False, on_epoch=True, prog_bar=False, batch_size=self.cfg.DATA.BATCH_SIZE)
 
-        # only visualize every X epochs
-        if batch_idx == 0:
+        # only visualize first and final epoch
+        # TODO: make sure this works with restart
+        if self.current_epoch in (0, self.cfg.TRAINER.max_epochs - 1):
             self.visualize_predictions(batch, binary_preds, target)
-        # need a way to aggregate predictions, patient_id across batches
-        # TODO: how to run visualize at end of the validation loop
 
         self.validation_step_outputs.append(
             {

@@ -58,7 +58,6 @@ _C.DATA.MODALITY = "fla"
 _C.SOLVER = CN()
 # Adam, AdamW
 _C.SOLVER.OPTIMIZER_NAME = "SGD"
-_C.SOLVER.SCHEDULER_NAME = "Cosine"  # or Linear
 _C.SOLVER.BASE_LR = 0.0001
 _C.SOLVER.WEIGHT_DECAY = 0.0005  # optimizer weight decay 5e-4
 
@@ -71,6 +70,53 @@ _C.SOLVER.SGD = CN()
 _C.SOLVER.SGD.momentum = 0.0  # 0.937
 _C.SOLVER.SGD.dampening = 0.0
 _C.SOLVER.SGD.nesterov = False
+
+_C.SOLVER.SCHEDULER_NAME = "MultiStepLR"
+# https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.OneCycleLR.html
+_C.SOLVER.OneCycleLR = CN()
+_C.SOLVER.OneCycleLR.max_lr = 0.001
+_C.SOLVER.OneCycleLR.pct_start = 0.3
+_C.SOLVER.OneCycleLR.anneal_strategy = "cos"
+_C.SOLVER.OneCycleLR.cycle_momentum = True
+_C.SOLVER.OneCycleLR.base_momentum = 0.85
+_C.SOLVER.OneCycleLR.max_momentum = 0.95
+# Determines the initial learning rate via initial_lr = max_lr/div_factor
+_C.SOLVER.OneCycleLR.div_factor = 25.0
+# Determines the minimum learning rate via min_lr = initial_lr/final_div_factor
+_C.SOLVER.OneCycleLR.final_div_factor = 10000.0
+_C.SOLVER.OneCycleLR.three_phase = False
+# The index of the last batch. This parameter is used when resuming a training job.
+# Since step() should be invoked after each batch instead of after each epoch,
+# this number represents the total number of batches computed, not the total number of epochs computed.
+# When last_epoch=-1, the schedule is started from the beginning. Default: -1
+_C.SOLVER.OneCycleLR.last_epoch = -1
+
+_C.SOLVER.ReduceLROnPlateau = CN()
+_C.SOLVER.ReduceLROnPlateau.mode = "min"
+# Factor by which the learning rate will be reduced. new_lr = lr * factor.
+_C.SOLVER.ReduceLROnPlateau.factor = 0.1
+# Number of epochs with no improvement after which learning rate will be reduced.
+# For example, if patience = 2, then we will ignore the first 2 epochs with no improvement,
+# and will only decrease the LR after the 3rd epoch if the loss still hasn’t improved then.
+_C.SOLVER.ReduceLROnPlateau.patience = 10
+# One of rel, abs. In rel mode, dynamic_threshold = best * ( 1 + threshold ) in ‘max’ mode or
+#  best * ( 1 - threshold ) in min mode. In abs mode, dynamic_threshold = best + threshold
+# in max mode or best - threshold in min mode.
+_C.SOLVER.ReduceLROnPlateau.threshold_mode = "rel"
+_C.SOLVER.ReduceLROnPlateau.cooldown = 0
+_C.SOLVER.ReduceLROnPlateau.min_lr = 0
+_C.SOLVER.ReduceLROnPlateau.eps = 1e-08
+
+_C.SOLVER.MultiStepLR = CN()
+# List of epoch indices. Must be increasing.
+_C.SOLVER.MultiStepLR.milestones = [5, 10]
+# Multiplicative factor of learning rate decay. Default: 0.1.
+_C.SOLVER.MultiStepLR.gamma = 0.1
+
+_C.SOLVER.WARMUP = CN()
+_C.SOLVER.WARMUP.ENABLED = True
+_C.SOLVER.WARMUP.warmup_steps = 3
+_C.SOLVER.WARMUP.warmup_strategy = "linear"
 
 _C.MODEL = CN()
 _C.MODEL.NAME = "resnet10"

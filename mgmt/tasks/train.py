@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 
+import numpy as np
 from fvcore.common.config import CfgNode
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import Callback, LearningRateMonitor, ModelCheckpoint
@@ -32,8 +33,9 @@ def main(cfg):
     callbacks = get_callbacks(cfg)
     trainer = Trainer(**cfg.TRAINER, callbacks=callbacks, logger=tb_logger)
 
-    model = Classifier(cfg)
     datamodule = DataModule(cfg)
+    # steps_per_epoch = int(np.ceil(len(datamodule.train_set) / cfg.DATA.BATCH_SIZE))
+    model = Classifier(cfg, steps_per_epoch=29)
     # Distributed is initialized in fit, not init
     trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.CHECKPOINT.PATH)
 
