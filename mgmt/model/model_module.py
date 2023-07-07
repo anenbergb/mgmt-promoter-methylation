@@ -79,12 +79,13 @@ class Classifier(LightningModule):
         """
         optimizer = build_optimizer(self.net.parameters(), self.cfg)
         scheduler = build_lr_scheduler(optimizer, self.cfg, self.steps_per_epoch)
+        interval = "step" if self.cfg.SOLVER.SCHEDULER_NAME == "OneCycleLR" else "epoch"
 
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": scheduler,
-                "interval": "epoch",
+                "interval": interval,
                 "frequency": 1,
                 # Metric to to monitor for schedulers like `ReduceLROnPlateau`
                 "monitor": "val/loss",
@@ -151,8 +152,17 @@ class Classifier(LightningModule):
         self.val_acc(binary_preds, target)
         self.val_auc(preds, target)
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
-        self.log("val/accuracy", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
-        self.log("val/auc", loss, on_step=False, on_epoch=True, prog_bar=False, batch_size=self.cfg.DATA.BATCH_SIZE)
+        self.log(
+            "val/accuracy",
+            self.val_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            batch_size=self.cfg.DATA.BATCH_SIZE,
+        )
+        self.log(
+            "val/auc", self.val_auc, on_step=False, on_epoch=True, prog_bar=False, batch_size=self.cfg.DATA.BATCH_SIZE
+        )
 
         # only visualize first and final epoch
         # TODO: make sure this works with restart

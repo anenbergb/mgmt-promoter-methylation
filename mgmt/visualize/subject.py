@@ -166,7 +166,7 @@ def plot_subject(
 
 def render_subject_metadata(
     subject: tio.Subject,
-    font="sans-sarif",
+    font="DejaVu Sans",
     font_size=16,
 ) -> np.ndarray:
     from mgmt.data.subject_utils import get_subject_nonimages

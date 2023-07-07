@@ -7,7 +7,7 @@ _C.SEED_EVERYTHING = 42
 _C.OUTPUT_DIR = "output"
 _C.CHECKPOINT = CN()
 _C.CHECKPOINT.PATH = None  # "best", "last", "hpc", or path to checkpoint
-_C.CHECKPOINT.save_top_k = 10
+_C.CHECKPOINT.save_top_k = 3
 
 _C.SYSTEM = CN()
 _C.SYSTEM.NUM_GPUS = 8
@@ -57,8 +57,8 @@ _C.DATA.MODALITY = "fla"
 
 _C.SOLVER = CN()
 # Adam, AdamW
-_C.SOLVER.OPTIMIZER_NAME = "SGD"
-_C.SOLVER.BASE_LR = 0.0001
+_C.SOLVER.OPTIMIZER_NAME = "AdamW"
+_C.SOLVER.BASE_LR = 0.001
 _C.SOLVER.WEIGHT_DECAY = 0.0005  # optimizer weight decay 5e-4
 
 _C.SOLVER.ADAM = CN()
@@ -71,7 +71,7 @@ _C.SOLVER.SGD.momentum = 0.0  # 0.937
 _C.SOLVER.SGD.dampening = 0.0
 _C.SOLVER.SGD.nesterov = False
 
-_C.SOLVER.SCHEDULER_NAME = "MultiStepLR"
+_C.SOLVER.SCHEDULER_NAME = "OneCycleLR"
 # https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.OneCycleLR.html
 _C.SOLVER.OneCycleLR = CN()
 _C.SOLVER.OneCycleLR.max_lr = 0.001
@@ -89,7 +89,6 @@ _C.SOLVER.OneCycleLR.three_phase = False
 # Since step() should be invoked after each batch instead of after each epoch,
 # this number represents the total number of batches computed, not the total number of epochs computed.
 # When last_epoch=-1, the schedule is started from the beginning. Default: -1
-_C.SOLVER.OneCycleLR.last_epoch = -1
 
 _C.SOLVER.ReduceLROnPlateau = CN()
 _C.SOLVER.ReduceLROnPlateau.mode = "min"
@@ -114,7 +113,7 @@ _C.SOLVER.MultiStepLR.milestones = [5, 10]
 _C.SOLVER.MultiStepLR.gamma = 0.1
 
 _C.SOLVER.WARMUP = CN()
-_C.SOLVER.WARMUP.ENABLED = True
+_C.SOLVER.WARMUP.ENABLED = False
 _C.SOLVER.WARMUP.warmup_steps = 3
 _C.SOLVER.WARMUP.warmup_strategy = "linear"
 

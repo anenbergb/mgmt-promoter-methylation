@@ -5,7 +5,12 @@ import sys
 import numpy as np
 from fvcore.common.config import CfgNode
 from lightning.pytorch import Trainer, seed_everything
-from lightning.pytorch.callbacks import Callback, LearningRateMonitor, ModelCheckpoint
+from lightning.pytorch.callbacks import (
+    Callback,
+    LearningRateMonitor,
+    ModelCheckpoint,
+    RichProgressBar,
+)
 from lightning.pytorch.loggers import TensorBoardLogger
 from loguru import logger
 
@@ -29,18 +34,29 @@ def main(cfg):
     setup_logger(cfg)
     seed_everything(cfg.SEED_EVERYTHING, workers=True)
 
+    datamodule = DataModule(cfg)
+    steps_per_epoch = get_steps_per_epoch(cfg, datamodule)
+    # TODO: make this work when you're resuming from a checkpoint
+    max_steps = steps_per_epoch * cfg.TRAINER.max_epochs
+
     tb_logger = TensorBoardLogger(save_dir=cfg.OUTPUT_DIR, version="logs", name="")
-    callbacks = get_callbacks(cfg)
+    callbacks = get_callbacks(cfg, max_steps)
     trainer = Trainer(**cfg.TRAINER, callbacks=callbacks, logger=tb_logger)
 
-    datamodule = DataModule(cfg)
-    # steps_per_epoch = int(np.ceil(len(datamodule.train_set) / cfg.DATA.BATCH_SIZE))
-    model = Classifier(cfg, steps_per_epoch=29)
+    model = Classifier(cfg, steps_per_epoch=steps_per_epoch)
     # Distributed is initialized in fit, not init
     trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.CHECKPOINT.PATH)
 
 
-def get_callbacks(cfg: CfgNode) -> list[Callback]:
+def get_steps_per_epoch(cfg: CfgNode, datamodule: DataModule) -> int:
+    datamodule.prepare_data()
+    num_subjects = len(datamodule.subjects)
+    num_train = np.ceil(cfg.DATA.TRAIN_VAL_RATIO * num_subjects)
+    steps_per_epoch = int(np.ceil(num_train / cfg.DATA.BATCH_SIZE))
+    return steps_per_epoch
+
+
+def get_callbacks(cfg: CfgNode, max_steps: int) -> list[Callback]:
     """
 
     LearningRateMonitor
@@ -52,14 +68,15 @@ def get_callbacks(cfg: CfgNode) -> list[Callback]:
     # maybe monitor the val accuracy rather than val loss
     checkpoint = ModelCheckpoint(
         dirpath=os.path.join(cfg.OUTPUT_DIR, "checkpoints"),
-        filename="epoch={epoch}-step={step}-val_loss={val_loss:.2f}",
-        monitor="val/loss",
+        filename="epoch={epoch}-step={step}-val_accuracy={val/accuracy:.2f}",
+        monitor="val/accuracy",
         save_top_k=cfg.CHECKPOINT.save_top_k,
-        mode="min",
+        mode="max",
         auto_insert_metric_name=False,
         save_last=True,
     )
-    progress_bar = ProgressBar()
+    progress_bar = ProgressBar(max_steps=max_steps)
+    # progress_bar = RichProgressBar()
     # maybe add lightning.pytorch.callbacks.EarlyStopping
     # TODO: add scheduler https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_intermediate_2.html
 

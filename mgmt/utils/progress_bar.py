@@ -39,20 +39,20 @@ class SmoothedValue(object):
 
 
 class ProgressBar(TQDMProgressBar):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, max_steps=50, **kwargs):
         super().__init__(*args, **kwargs)
         self.iter_time = SmoothedValue(window_size=100)
         self.end_time = time.time()
+        self.max_steps = max_steps
 
     def get_metrics(self, trainer, pl_module):
         items = super().get_metrics(trainer, pl_module)
         items.pop("v_num", None)
         step = trainer.global_step + 1
-        max_steps = trainer.max_steps
-        items["iter"] = f"{step}/{max_steps}"
+        items["iter"] = f"{step}/{self.max_steps}"
 
         if trainer.training:
-            eta_seconds = self.iter_time.global_avg * (max_steps - step)
+            eta_seconds = self.iter_time.global_avg * (self.max_steps - step)
             eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
             items["ETA"] = eta_string
         return items

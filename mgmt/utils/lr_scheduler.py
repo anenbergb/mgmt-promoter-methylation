@@ -56,7 +56,7 @@ def build_lr_scheduler(
     else:
         raise ValueError(f"Unknown lr_scheduler {sfg.SCHEDULER_NAME}")
 
-    if sfg.WARMUP.ENABLED:
+    if sfg.WARMUP.ENABLED and sfg.SCHEDULER_NAME != "OneCycleLR":
         warmup = WarmupScheduler(optimizer, sfg.WARMUP.warmup_steps, sfg.WARMUP.warmup_strategy)
         scheduler = torch.optim.lr_scheduler.ChainedScheduler(schedulers=[warmup, scheduler])
 
