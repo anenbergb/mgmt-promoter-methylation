@@ -1,6 +1,6 @@
 import datetime
 import time
-from collections import defaultdict, deque
+from collections import deque
 
 import torch
 from lightning.pytorch.callbacks.progress import TQDMProgressBar
