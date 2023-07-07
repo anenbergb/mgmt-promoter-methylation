@@ -3,6 +3,8 @@ import io
 import matplotlib.pyplot as plt
 import numpy as np
 import torchio as tio
+from matplotlib import font_manager
+from PIL import Image, ImageDraw, ImageFont
 from torchio.transforms.preprocessing.spatial.to_canonical import ToCanonical
 from torchio.visualization import color_labels, rotate
 
@@ -96,6 +98,7 @@ def plot_subject(
     clear_axes=True,
     return_fig=False,
     single_axis=None,  # one of (Sagittal, Coronal, Axial)
+    add_metadata=False,
     **kwargs,
 ):
     num_images = len(subject)
@@ -142,8 +145,49 @@ def plot_subject(
     fig.canvas.draw()
     data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep="")
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    close_fig = True
     if show:
         plt.show()
+        close_fig = False
     if return_fig:
         return fig
+    if add_metadata:
+        meta_im = render_subject_metadata(subject)
+        max_width = max(data.shape[1], meta_im.shape[1])
+        padded = [
+            np.pad(x, ((0, 0), (0, max_width - x.shape[1]), (0, 0)), mode="constant", constant_values=255)
+            for x in (data, meta_im)
+        ]
+        data = np.concatenate(padded, axis=0)
+    if close_fig:
+        plt.close(fig)
     return data
+
+
+def render_subject_metadata(
+    subject: tio.Subject,
+    font="DejaVu Sans",
+    font_size=16,
+) -> np.ndarray:
+    from mgmt.data.subject_utils import get_subject_nonimages
+
+    font_type = font_manager.FontProperties(family=font, weight="normal")
+    font_file = font_manager.findfont(font_type)
+    image_font = ImageFont.truetype(font_file, font_size)
+    height = image_font.getmetrics()[0] + 1
+
+    max_width = 0
+
+    rows = []
+    for name, value in get_subject_nonimages(subject).items():
+        row_str = f"{name}: {value}"
+        (width, _), _ = image_font.font.getsize(row_str)
+        max_width = max(max_width, width)
+        rows.append(row_str)
+
+    info_image = Image.new("RGB", (max_width, height * len(rows)), "white")
+    draw = ImageDraw.Draw(info_image)
+    for i, row in enumerate(rows):
+        draw.text((0, i * height), row, font=image_font, fill=(0, 0, 0))
+    arr = np.asarray(info_image)
+    return arr

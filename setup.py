@@ -34,6 +34,7 @@ setup(
         "iopath",
         "seaborn",
         "loguru",
+        "ray[tune]"
     ],
     extras_require={
         "notebook": [

@@ -1,20 +1,27 @@
+import numpy as np
 import torch
 import torchio
 import torchmetrics
+from fvcore.common.config import CfgNode
 from lightning.pytorch import LightningDataModule, LightningModule, cli_lightning_logo
-from monai.networks.nets.resnet import resnet10
 from torch.nn import BCEWithLogitsLoss
+
+from mgmt.data.subject_utils import get_subjects_from_batch
+from mgmt.data_science.plot_center_mass import add_color_border
+from mgmt.model import build_model
+from mgmt.utils.lr_scheduler import build_lr_scheduler
+from mgmt.utils.optimizer import build_optimizer
+from mgmt.visualize.subject import plot_subject
+from mgmt.visualize.visualize import plot_classification_grid
 
 
 class Classifier(LightningModule):
     def __init__(
         self,
-        learning_rate: float = 0.0001,
-        modality: str = "fla",
-        batch_size: int = 16,
+        cfg: CfgNode,
+        steps_per_epoch=50,
     ):
         """
-
         Resnet10
             - https://docs.monai.io/en/stable/_modules/monai/networks/nets/resnet.html#ResNet
 
@@ -25,49 +32,78 @@ class Classifier(LightningModule):
         torchmetrics
             - https://torchmetrics.readthedocs.io/en/stable/pages/lightning.html
             - https://torchmetrics.readthedocs.io/en/stable/classification/accuracy.html
+
+        submodules
+            - https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_advanced_3.html
+            - subclass_mode_model = True
+        OptimizerCallable and LRSchedulerCallable
+            - https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_advanced_3.html
         """
         super().__init__()
-        self.save_hyperparameters()
+        self.cfg = cfg
+        self.steps_per_epoch = steps_per_epoch
+
+        # TODO: decide how checkpointing will work.... do I need to save params here
+        # self.save_hyperparameters()
 
         # equivalent
         # self.save_hyperparameters("layer_1_dim", "learning_rate")
         # self.save_hyperparameters(ignore=[...])
 
-        self.net = resnet10(
-            pretrained=False,
-            progress=True,
-            spatial_dims=3,
-            n_input_channels=1,
-            conv1_t_size=7,
-            conv1_t_stride=1,
-            num_classes=1,
-            feed_forward=True,  # adds FC layer
-        )
+        self.net = build_model(cfg)
+
         # TODO: consider adding additional losses
         self.criterion = BCEWithLogitsLoss()
-        self.optimizer_class = torch.optim.AdamW
 
-        self.train_acc = torchmetrics.classification.BinaryAccuracy()
-        self.val_acc = torchmetrics.classification.BinaryAccuracy()
+        self.train_acc = torchmetrics.classification.BinaryAccuracy(threshold=cfg.METRICS.THRESHOLD)
+        self.val_acc = torchmetrics.classification.BinaryAccuracy(threshold=cfg.METRICS.THRESHOLD)
         self.train_auc = torchmetrics.classification.BinaryAUROC()
         self.val_auc = torchmetrics.classification.BinaryAUROC()
+
+        self.validation_step_outputs = []
+
+    # TODO: consider adding a from_config(cfg: cfgNode) constructor method
 
     def forward(self, x):
         return self.net(x)
 
     def configure_optimizers(self):
-        optimizer = self.optimizer_class(self.net.parameters(), lr=self.hparams.learning_rate)
-        return optimizer
+        """
+        Pytorch Lightning documentation
+            - https://lightning.ai/docs/pytorch/stable/common/optimization.html
+            - https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#configure-optimizers
+
+        Other optimizers
+            - https://github.com/huggingface/pytorch-image-models/blob/main/timm/scheduler/scheduler.py
+
+        """
+        optimizer = build_optimizer(self.net.parameters(), self.cfg)
+        scheduler = build_lr_scheduler(optimizer, self.cfg, self.steps_per_epoch)
+        interval = "step" if self.cfg.SOLVER.SCHEDULER_NAME == "OneCycleLR" else "epoch"
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": interval,
+                "frequency": 1,
+                # Metric to to monitor for schedulers like `ReduceLROnPlateau`
+                "monitor": "val/loss",
+                "strict": True,
+            },
+        }
 
     # Consider also configuring scheduler
 
     def prepare_batch(self, batch):
-        return batch[self.hparams.modality][torchio.DATA], batch["category_id"]
+        return batch[self.cfg.DATA.MODALITY][torchio.DATA], batch["category_id"]
 
     def infer_batch(self, batch):
         x, target = self.prepare_batch(batch)
-        preds = self.net(x).flatten()
-        return preds, target
+        logits = self.net(x).flatten()
+        preds = torch.sigmoid(logits)
+        binary_preds = (preds > self.cfg.METRICS.THRESHOLD).to(torch.int64)
+        return logits, preds, binary_preds, target
 
     def training_step(self, batch, batch_idx):
         """
@@ -76,21 +112,25 @@ class Classifier(LightningModule):
         logging:
             - https://lightning.ai/docs/pytorch/stable/extensions/logging.html
             - https://github.com/Lightning-AI/lightning/blob/master/src/lightning/pytorch/core/module.py#L344
+
+            rank_zero_only: Whether the value will be logged only on rank 0.
+                This will prevent synchronization which would produce a deadlock
+                as not all processes would perform this log call.
         """
-        preds, target = self.infer_batch(batch)
-        loss = self.criterion(preds, target.to(torch.float))
-        self.train_acc(preds, target)
+        logits, preds, binary_preds, target = self.infer_batch(batch)
+        loss = self.criterion(logits, target.to(torch.float))
+        self.train_acc(binary_preds, target)
         self.train_auc(preds, target)
+        self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
         self.log_dict(
             {
-                "train_loss": loss,
-                "train_acc": self.train_acc,
-                "train_auc": self.train_auc,
+                "train/accuracy": self.train_acc,
+                "train/auc": self.train_auc,
             },
             on_step=False,
             on_epoch=True,
-            prog_bar=True,
-            batch_size=self.hparams.batch_size,
+            prog_bar=False,
+            batch_size=self.cfg.DATA.BATCH_SIZE,
         )
         return {"loss": loss, "preds": preds, "target": target}
 
@@ -98,24 +138,77 @@ class Classifier(LightningModule):
     # I think train_step_end is only required if training with data parallel
     # https://github.com/Lightning-AI/lightning/issues/8105
 
+    # TODO: Not sure if I need to manually step
+    # def on_train_epoch_end(self):
+    #     sch = self.lr_schedulers()
+
+    #     # If the selected scheduler is a ReduceLROnPlateau scheduler.
+    #     if isinstance(sch, torch.optim.lr_scheduler.ReduceLROnPlateau):
+    #         sch.step(self.trainer.callback_metrics["val/loss"])
+
     def validation_step(self, batch, batch_idx):
-        preds, target = self.infer_batch(batch)
-        loss = self.criterion(preds, target.to(torch.float))
-        self.val_acc(preds, target)
+        logits, preds, binary_preds, target = self.infer_batch(batch)
+        loss = self.criterion(logits, target.to(torch.float))
+        self.val_acc(binary_preds, target)
         self.val_auc(preds, target)
-        self.log_dict(
-            {
-                "val_loss": loss,
-                "val_acc": self.val_acc,
-                "val_auc": self.val_auc,
-            },
+        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
+        self.log(
+            "val/accuracy",
+            self.val_acc,
             on_step=False,
             on_epoch=True,
             prog_bar=True,
-            batch_size=self.hparams.batch_size,
+            batch_size=self.cfg.DATA.BATCH_SIZE,
         )
+        self.log(
+            "val/auc", self.val_auc, on_step=False, on_epoch=True, prog_bar=False, batch_size=self.cfg.DATA.BATCH_SIZE
+        )
+
+        # only visualize first and final epoch
+        # TODO: make sure this works with restart
+        if self.current_epoch in (0, self.cfg.TRAINER.max_epochs - 1):
+            self.visualize_predictions(batch, binary_preds, target)
+
+        self.validation_step_outputs.append(
+            {
+                "preds": preds.cpu().numpy(),
+                "target": target.cpu().numpy(),
+                "patient_id": batch["patient_id"].cpu().numpy(),
+            }
+        )
+
         return {"loss": loss, "preds": preds, "target": target}
 
+    def on_validation_epoch_end(self):
+        val_output_keys = ("preds", "target", "patient_id")
+        all_outputs = {key: np.concatenate([x[key] for x in self.validation_step_outputs]) for key in val_output_keys}
+        self.plot_classification_grid(all_outputs["preds"], all_outputs["target"], all_outputs["patient_id"])
+        self.validation_step_outputs.clear()
+
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        y_hat, _ = self.infer_batch(batch)
-        return y_hat
+        preds, _, _, _ = self.infer_batch(batch)
+        return preds
+
+    def visualize_predictions(self, batch, binary_preds, targets):
+        """
+        Tensorboard
+            - https://pytorch.org/docs/stable/tensorboard.html
+        """
+        batch_subjects = get_subjects_from_batch(batch)
+        for subject, pred, target in zip(batch_subjects, binary_preds, targets):
+            image = plot_subject(
+                subject, show=False, return_fig=False, figsize=(6.4, 1.6), single_axis="axial", add_metadata=True
+            )
+            color = "green" if pred == target else "red"
+            image = add_color_border(image, color=color)
+            tensor = torch.from_numpy(image)  # HWC
+            self.logger.experiment.add_image(
+                f"val_subject/{subject.patient_id}", tensor, global_step=self.global_step, dataformats="HWC"
+            )
+
+    def plot_classification_grid(self, preds, target, patient_id):
+        grid = plot_classification_grid(preds, target, patient_id)
+        tensor = torch.from_numpy(grid)  # HWC
+        self.logger.experiment.add_image(
+            f"val_classification_grid", tensor, global_step=self.global_step, dataformats="HWC"
+        )

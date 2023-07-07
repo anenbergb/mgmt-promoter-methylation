@@ -13,11 +13,16 @@ from mgmt.utils.progress_bar import ProgressBar
 
 
 class CLI(LightningCLI):
+    """
+    https://github.com/Lightning-AI/lightning/blob/master/src/lightning/pytorch/cli.py#L290
+    """
+
     def add_arguments_to_parser(self, parser):
         """
         https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_expert.html#cli-link-arguments
         """
         parser.link_arguments("data.batch_size", "model.batch_size")
+        # If we do a fixed optimizer or scheduler, how can I reference those variables?
 
 
 def cli_main():
@@ -26,9 +31,16 @@ def cli_main():
         - https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_expert.html
     Trainer
     - https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.trainer.trainer.Trainer.html
+    Tensorboard Logger
+    - https://lightning.ai/docs/pytorch/stable/extensions/generated/lightning.pytorch.loggers.TensorBoardLogger.html#tensorboardlogger
+
+    Weights and Biases Logging
+    - https://docs.wandb.ai/guides/integrations/lightning
     """
     tb_logger = pl.loggers.TensorBoardLogger(save_dir="", version="logs", name="")
+    #
     # callbacks
+    # Maybe add EarlyStopping
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval="step")
     # maybe monitor the val accuracy rather than val loss
     checkpoint = pl.callbacks.ModelCheckpoint(

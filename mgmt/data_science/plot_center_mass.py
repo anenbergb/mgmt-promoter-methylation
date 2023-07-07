@@ -36,7 +36,7 @@ def add_color_border(img, border_width=10, color="green"):
     width = img.shape[1]
     frame_height = 2 * border_width + height
     frame_width = 2 * border_width + width
-    framed_img = Image.new("RGB", (frame_height, frame_width), color)
+    framed_img = Image.new("RGB", (frame_width, frame_height), color)
     framed_img = np.array(framed_img)
     framed_img[border_width:-border_width, border_width:-border_width] = img
     return framed_img

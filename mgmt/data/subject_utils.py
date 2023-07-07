@@ -51,8 +51,8 @@ def get_subjects_from_batch(batch: dict) -> list[tio.Subject]:
         subject_dict = {}
         for image_name in image_names:
             image_dict = batch[image_name]
-            data = image_dict[tio.constants.DATA][i]
-            affine = image_dict[tio.constants.AFFINE][i]
+            data = image_dict[tio.constants.DATA][i].cpu()
+            affine = image_dict[tio.constants.AFFINE][i].cpu()
             path = Path(image_dict[tio.constants.PATH][i])
             is_label = image_dict[tio.constants.TYPE][i] == tio.constants.LABEL
             klass = tio.LabelMap if is_label else tio.ScalarImage
