@@ -67,7 +67,7 @@ _C.SOLVER.NADAM = CN()
 _C.SOLVER.NADAM.momentum_decay = 4e-3
 
 _C.SOLVER.SGD = CN()
-_C.SOLVER.SGD.momentum = 0.0  # 0.937
+_C.SOLVER.SGD.momentum = 0.937
 _C.SOLVER.SGD.dampening = 0.0
 _C.SOLVER.SGD.nesterov = False
 

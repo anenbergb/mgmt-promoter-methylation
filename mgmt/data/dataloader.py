@@ -223,10 +223,12 @@ class DataModule(LightningDataModule):
                     # only rotate about the z-axis (depth)
                     degrees=(0, 0, 0, 0, 0, 360),
                 ),
-                # tio.RandomGamma(p=0.5),
-                # tio.RandomNoise(p=0.5),
-                # tio.RandomMotion(p=0.1),
-                # tio.RandomBiasField(p=0.25),
+                tio.RandomGamma(p=0.5),
+                # https://torchio.readthedocs.io/transforms/augmentation.html#randomnoise
+                # greater than 0.1 looks pretty grainy
+                tio.RandomNoise(p=0.5, std=(0, 0.1)),
+                tio.RandomMotion(p=0.1, translation=(-1, 1), degrees=(-1, 1)),
+                tio.RandomBiasField(p=0.1, coefficients=(-0.1, 0.1)),
             ]
         )
         return augment
