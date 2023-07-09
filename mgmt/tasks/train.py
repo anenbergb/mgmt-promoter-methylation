@@ -62,7 +62,7 @@ def get_callbacks(cfg: CfgNode, max_steps: int) -> list[Callback]:
     LearningRateMonitor
         - https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.LearningRateMonitor.html
     """
-    # Maybe add EarlyStopping
+    # Maybe add EarlyStopping, lightning.pytorch.callbacks.EarlyStopping
 
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
     # maybe monitor the val accuracy rather than val loss
