@@ -47,6 +47,15 @@ def make_scalar_image(data: Dict[str, np.ndarray], patient_index: int = 0, modal
     return tio.ScalarImage(tensor=tensor, name=name)
 
 
+def make_concat_image(subject: tio.Subject, modality: list[str] = ["t2w"]) -> tio.ScalarImage:
+    tensors = []
+    for m in modality:
+        assert m in subject
+        tensors.append(subject[m].tensor)
+    tensor = torch.cat(tensors, dim=0)
+    return tio.ScalarImage(tensor=tensor)
+
+
 def make_segmentation_image(
     data: Dict[str, np.ndarray],
     patient_index: int = 0,
@@ -70,6 +79,11 @@ def make_subject(data: Dict[str, np.ndarray], patient_index: int = 0) -> tio.Sub
         **mri_images,
     )
     return subject
+
+    # if combined_modality is not None:
+    #     if isinstance(combined_modality, list):
+    #         combined = make_concat_image(data, patient_index, combined_modality)
+    #     mri_images["combined"] = combined
 
 
 def get_max_shape(subjects):
@@ -168,6 +182,14 @@ class DataModule(LightningDataModule):
             if patient_id not in patient_exclusions:
                 self.subjects.append(make_subject(data, patient_id))
 
+        self.add_combined_image()
+
+    def add_combined_image(self):
+        if self.cfg.DATA.MODALITY == "concat":
+            for subject in self.subjects:
+                image = make_concat_image(subject, self.cfg.DATA.MODALITY_CONCAT)
+                subject.add_image(image, self.cfg.DATA.MODALITY)
+
     def download_data(self):
         data = load_data(self.cfg.DATA.FILEPATH_NPZ)
         exs = load_patient_exclusion(self.cfg.DATA.PATIENT_EXCLUSION_CSV)
@@ -185,7 +207,7 @@ class DataModule(LightningDataModule):
         Args:
             stage: It is used to separate setup logic for trainer.{fit,validate,test,predict}.
         """
-        generator = torch.Generator().manual_seed(42)
+        generator = torch.Generator().manual_seed(self.cfg.DATA.TRAIN_VAL_MANUAL_SEED)
         train_subjects, val_subjects = subjects_train_val_split(self.subjects, self.cfg.DATA.TRAIN_VAL_RATIO, generator)
 
         self.preprocess = self.get_preprocessing_transform()
