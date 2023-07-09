@@ -80,11 +80,6 @@ def make_subject(data: Dict[str, np.ndarray], patient_index: int = 0) -> tio.Sub
     )
     return subject
 
-    # if combined_modality is not None:
-    #     if isinstance(combined_modality, list):
-    #         combined = make_concat_image(data, patient_index, combined_modality)
-    #     mri_images["combined"] = combined
-
 
 def get_max_shape(subjects):
     dataset = tio.SubjectsDataset(subjects)
