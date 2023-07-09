@@ -49,11 +49,15 @@ _C.DATA.FILEPATH_NPZ = "/home/bryan/data/brain_tumor/caidm_3d_96/data.npz"
 _C.DATA.PATIENT_EXCLUSION_CSV = "/home/bryan/src/mgmt-promoter-methylation/mgmt/data/patient_exclusion.csv"
 # /Users/bryan/src/mgmt-promoter-methylation/mgmt/data/patient_exclusion.csv"
 _C.DATA.TRAIN_VAL_RATIO = 0.85
+_C.DATA.TRAIN_VAL_MANUAL_SEED = 10
 _C.DATA.BATCH_SIZE = 16
 _C.DATA.CROP_DIM = [40, 40, 8]
 _C.DATA.SHAPE_MULTIPLE = 8
 _C.DATA.NUM_WORKERS = 12
-_C.DATA.MODALITY = "fla"
+# 'fla', 't1w', 't1c', 't2w', 'concat'
+_C.DATA.MODALITY = "concat"
+_C.DATA.MODALITY_CONCAT = ["fla", "t1w", "t1c", "t2w"]
+
 
 _C.SOLVER = CN()
 # Adam, AdamW
@@ -67,7 +71,7 @@ _C.SOLVER.NADAM = CN()
 _C.SOLVER.NADAM.momentum_decay = 4e-3
 
 _C.SOLVER.SGD = CN()
-_C.SOLVER.SGD.momentum = 0.0  # 0.937
+_C.SOLVER.SGD.momentum = 0.937
 _C.SOLVER.SGD.dampening = 0.0
 _C.SOLVER.SGD.nesterov = False
 
@@ -124,7 +128,7 @@ _C.MODEL.RESNET = CN()
 _C.MODEL.RESNET.pretrained = False
 _C.MODEL.RESNET.progress = False
 _C.MODEL.RESNET.spatial_dims = 3
-_C.MODEL.RESNET.n_input_channels = 1
+# _C.MODEL.RESNET.n_input_channels = 1
 _C.MODEL.RESNET.conv1_t_size = 7
 _C.MODEL.RESNET.conv1_t_stride = 1
 _C.MODEL.RESNET.no_max_pool = False
