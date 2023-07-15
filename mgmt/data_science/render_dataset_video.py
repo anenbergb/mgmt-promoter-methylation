@@ -12,12 +12,13 @@ from monai.visualize import blend_images
 from PIL import Image
 from tqdm import tqdm
 
-from mgmt.data.constants import MODALITIES
+from mgmt.data.constants import MODALITIES, TUMOR_LABELS_LONG
 from mgmt.data.nifti import load_subjects
 from mgmt.data_science.dataframe import tumor_dataframe
 from mgmt.utils.crop import slide_box_within_border
 from mgmt.utils.ffmpeg import FfmpegWriter
 from mgmt.visualize.subject import plot_volume_with_label
+from mgmt.visualize.visualize import segmentation_label_color
 
 modality2name = {
     "fla": "FLAIR",  # "Fluid Attenuated\nInversion Recovery\n(FLAIR)",
@@ -58,6 +59,8 @@ def plot_subject_grid_all_modalities(
     for row, patient_i in enumerate(patient_range):
         subject = subjects[patient_i]
         color = "green" if subject.category == "methylated" else "red"
+        # these are test subjects
+        color = None if subject.train_test_split == "test" else color
         for col, modality in enumerate(MODALITIES):
             ax = axes[row, col]
             plot_volume_with_label(
@@ -67,9 +70,10 @@ def plot_subject_grid_all_modalities(
                 single_axis="axial",
                 show=False,
                 border_color=color,
+                cmap="hsv",
             )
             ax.set_title("")
-            ax.set_xlabel(f"Patient {patient_i}")
+            ax.set_xlabel(f"{subject.patient_id_str}", fontsize=20)
             ax.set_ylabel("")
             ax.set_xticks([])
             ax.set_yticks([])
@@ -82,13 +86,25 @@ def plot_subject_grid_all_modalities(
         mpatches.Patch(color="green", label="Methylated"),
         mpatches.Patch(color="red", label="Not Methylated"),
     ]
-    fig.legend(
+    mgmt_legend = fig.legend(
         handles=patches,
         loc="upper right",
-        fontsize=22,
+        fontsize=20,
         title="MGMT Promoter Methylation",
-        title_fontsize=22,
+        title_fontsize=20,
     )
+
+    tumor_colors = segmentation_label_color([0, 1, 2, 4], "hsv", rgb_255=False)
+    patches = [mpatches.Patch(color=c, label=TUMOR_LABELS_LONG[i]) for i, c in zip([1, 2, 4], tumor_colors[1:])]
+    tumor_legend = fig.legend(
+        handles=patches,
+        loc="upper left",
+        fontsize=20,
+        title="Tumor Segmentation Labels",
+        title_fontsize=20,
+    )
+    fig.add_artist(mgmt_legend)
+    fig.add_artist(tumor_legend)
     fig.tight_layout()
     fig.subplots_adjust(top=0.90)
     if filename is not None:
@@ -108,6 +124,7 @@ def main_render_dataset_video(args):
     num_patients_per_image = 5
     size_factor = 5
 
+    os.makedirs(os.path.dirname(args.output), exist_ok=True)
     image_height_pix = args.dpi * size_factor * num_patients_per_image
     image_width_pix = args.dpi * size_factor * 4
     video_writer = FfmpegWriter(
@@ -131,6 +148,7 @@ def main_render_dataset_video(args):
         )
         if video_writer is not None:
             video_writer.write(fig)
+        plt.close(fig)
     if video_writer is not None:
         video_writer.close()
 

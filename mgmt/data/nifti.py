@@ -66,4 +66,5 @@ def load_subjects(dataset_folder, label_csv_path):
         folder_id = folder_name.split("-")[-1]
         category_id = label_map.get(folder_id, 0)
         subjects.append(make_subject(subject_folder, category_id))
+    subjects = sorted(subjects, key=lambda x: x.patient_id_str)
     return subjects

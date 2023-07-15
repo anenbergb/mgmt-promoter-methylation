@@ -21,7 +21,8 @@ Each folder contains 5 files
 * Segmentation mask tensors `seg` contain pixel values: 0, 1, 2, 4. These correspond to the official tumor segmentation labels given in the competition
 
 ### Tumor segmentation labels
-1. Gd-enhanced tumor (ET - label 4). 
+1. Gd-enhanced tumor (ET - label 4).
+    - Gd = gadolinium
     - “Enhanced tumor”
     Visually avid as well as faint enhancement on T1Gd MRI.
 2. Peritumoral edematous/invaded tissue (ED - label 2).

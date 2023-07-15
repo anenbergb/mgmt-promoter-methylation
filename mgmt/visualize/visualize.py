@@ -59,15 +59,14 @@ def add_color_border(img, border_width=10, color="green"):
     return framed_img
 
 
-def segmentation_label_color(labels=[0, 1, 2, 4], cmap="hsv"):
+def segmentation_label_color(labels=[0, 1, 2, 4], cmap="hsv", rgb_255=True):
     _cmap = cm.get_cmap(cmap)
 
     labels_np = np.array(labels)
     label_np = rescale_array(labels_np)
     label_rgb = _cmap(label_np)
-    colors = []
-    for l_rgb in label_rgb:
-        rgb = (255.0 * l_rgb).astype(np.uint8)
-        rgb = tuple(rgb[:3])
-        colors.append(rgb)
+    if rgb_255:
+        colors = [tuple((255.0 * l).astype(np.uint8)[:3]) for l in label_rgb]
+    else:
+        colors = [tuple(l[:3]) for l in label_rgb]
     return colors
