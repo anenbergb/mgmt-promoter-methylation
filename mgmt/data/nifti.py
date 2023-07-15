@@ -6,7 +6,7 @@ import torchio as tio
 from mgmt.data.constants import MODALITIES, MODALITY2NAME
 
 
-def make_subject(folder_path, category_id=0) -> tio.Subject:
+def make_subject(folder_path: str, category_id: int = 0, train_test_split: str = "train") -> tio.Subject:
     category = "methylated" if category_id == 1 else "unmethylated"
     mri_images = {}
     for modality, name in MODALITY2NAME.items():
@@ -15,8 +15,7 @@ def make_subject(folder_path, category_id=0) -> tio.Subject:
     tumor = tio.LabelMap(path=os.path.join(folder_path, "seg.nii.gz"), name="Tumor Segmentation")
     # patient_id_str is formatted P-00000 or MGMT-025579
     patient_id_str = os.path.basename(folder_path)
-    prefix, patient_id = patient_id_str.split("-")
-    train_test_split = "test" if prefix == "MGMT" else "train"
+    _, patient_id = patient_id_str.split("-")
     subject = tio.Subject(
         tumor=tumor,
         category_id=category_id,
@@ -29,7 +28,7 @@ def make_subject(folder_path, category_id=0) -> tio.Subject:
     return subject
 
 
-def load_label_csv(csv_path: str = "/home/bryan/data/brain_tumor/classification/train_labels.csv"):
+def load_label_csv(csv_path: str = "/home/bryan/data/brain_tumor/classification/train_labels.csv") -> dict[str, int]:
     with open(csv_path, "r") as f:
         csv_reader = csv.reader(f, delimiter=",")
         rows = [row for row in csv_reader]
@@ -38,7 +37,7 @@ def load_label_csv(csv_path: str = "/home/bryan/data/brain_tumor/classification/
     return label_map
 
 
-def get_subject_folders(dataset_folder):
+def get_subject_folders(dataset_folder: str) -> list[str]:
     patient_folders = []
     for file_name in os.listdir(dataset_folder):
         file_path = os.path.join(dataset_folder, file_name)
@@ -56,7 +55,7 @@ def get_subject_folders(dataset_folder):
     return patient_folders
 
 
-def load_subjects(dataset_folder, label_csv_path):
+def load_subjects(dataset_folder: str, label_csv_path: str, test_folder_prefix: str = "MGMT") -> list[tio.Subject]:
     label_map = load_label_csv(label_csv_path)
     subject_folders = get_subject_folders(dataset_folder)
     subjects = []
@@ -65,6 +64,7 @@ def load_subjects(dataset_folder, label_csv_path):
         folder_name = os.path.basename(subject_folder)
         folder_id = folder_name.split("-")[-1]
         category_id = label_map.get(folder_id, 0)
-        subjects.append(make_subject(subject_folder, category_id))
+        train_test_split = "test" if folder_name.startswith(test_folder_prefix) else "train"
+        subjects.append(make_subject(subject_folder, category_id, train_test_split))
     subjects = sorted(subjects, key=lambda x: x.patient_id_str)
     return subjects

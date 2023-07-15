@@ -111,6 +111,7 @@ def plot_volume_with_label(
     border_width=10,
     blend_alpha=0.25,
     cmap="hsv",
+    # draw_crop
 ):
     fig = None
 

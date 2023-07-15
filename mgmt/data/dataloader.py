@@ -23,10 +23,8 @@ from torch.utils.data import DataLoader
 from mgmt.data.constants import MODALITIES, MODALITY2NAME
 from mgmt.data.subject_transforms import CropLargestTumor
 
-
-def load_data(file_name: str) -> Dict[str, np.ndarray]:
-    data = np.load(file_name)
-    return {k: v for k, v in data.items()}
+from mgmt.data.numpy import load_subjects as numpy_load_subjects
+from mgmt.data.nifti import load_subjects as nifti_load_subjects
 
 
 def load_patient_exclusion(filename: str) -> np.ndarray:
@@ -37,16 +35,6 @@ def load_patient_exclusion(filename: str) -> np.ndarray:
     return arr
 
 
-def make_scalar_image(data: Dict[str, np.ndarray], patient_index: int = 0, modality: str = "t2w") -> tio.ScalarImage:
-    # (D,H,W,C) where D=48, C=1
-    assert modality in data
-    tensor = data[modality][patient_index]
-    # convert to (C,W,H,D)
-    tensor = np.transpose(tensor, axes=(3, 2, 1, 0))
-    name = MODALITY2NAME.get(modality)
-    return tio.ScalarImage(tensor=tensor, name=name)
-
-
 def make_concat_image(subject: tio.Subject, modality: list[str] = ["t2w"]) -> tio.ScalarImage:
     tensors = []
     for m in modality:
@@ -54,31 +42,6 @@ def make_concat_image(subject: tio.Subject, modality: list[str] = ["t2w"]) -> ti
         tensors.append(subject[m].tensor)
     tensor = torch.cat(tensors, dim=0)
     return tio.ScalarImage(tensor=tensor)
-
-
-def make_segmentation_image(
-    data: Dict[str, np.ndarray],
-    patient_index: int = 0,
-) -> tio.LabelMap:
-    # (D,H,W,C) where D=48, C=1
-    tensor = data["tum"][patient_index]
-    # convert to (C,W,H,D)
-    tensor = np.transpose(tensor, axes=(3, 2, 1, 0))
-    return tio.LabelMap(tensor=tensor, name="Tumor Segmentation")
-
-
-def make_subject(data: Dict[str, np.ndarray], patient_index: int = 0) -> tio.Subject:
-    category_id = data["lbl"][patient_index].item()
-    category = "methylated" if category_id == 1 else "unmethylated"
-    mri_images = {modality: make_scalar_image(data, patient_index, modality) for modality in MODALITIES}
-    subject = tio.Subject(
-        tumor=make_segmentation_image(data, patient_index),
-        category_id=category_id,
-        category=category,
-        patient_id=patient_index,
-        **mri_images,
-    )
-    return subject
 
 
 def get_max_shape(subjects):
@@ -170,13 +133,16 @@ class DataModule(LightningDataModule):
         prepare_data is called within a single process on CPU.
         https://lightning.ai/docs/pytorch/stable/data/datamodule.html#prepare-data
         """
-        data, patient_exclusions = self.download_data()
-        num_patients = len(data["lbl"])
-        self.subjects = []
-        for patient_id in range(num_patients):
-            if patient_id not in patient_exclusions:
-                self.subjects.append(make_subject(data, patient_id))
-
+        if self.cfg.DATA.SOURCE == "numpy":
+            subjects = numpy_load_subjects(self.cfg.NUMPY.FILEPATH_NPZ)
+            exs = load_patient_exclusion(self.cfg.DATA.PATIENT_EXCLUSION_CSV)
+            self.subjects = [s for s in subjects if s.patient_id not in exs]
+        elif self.cfg.DATA.SOURCE == "nifti":
+            self.subjects = nifti_load_subjects(
+                self.cfg.DATA.NIFTI.FOLDER_PATH,
+                self.cfg.DATA.NIFTI.TRAIN_LABELS,
+                self.cfg.DATA.NIFTI.TEST_FOLDER_PREFIX,
+            )
         self.add_combined_image()
 
     def add_combined_image(self):
@@ -184,11 +150,6 @@ class DataModule(LightningDataModule):
             for subject in self.subjects:
                 image = make_concat_image(subject, self.cfg.DATA.MODALITY_CONCAT)
                 subject.add_image(image, self.cfg.DATA.MODALITY)
-
-    def download_data(self):
-        data = load_data(self.cfg.DATA.FILEPATH_NPZ)
-        exs = load_patient_exclusion(self.cfg.DATA.PATIENT_EXCLUSION_CSV)
-        return data, exs
 
     def setup(self, stage=None):
         """

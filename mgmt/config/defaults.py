@@ -44,10 +44,19 @@ _C.TRAINER.reload_dataloaders_every_n_epochs = 0
 
 
 _C.DATA = CN()
-_C.DATA.FILEPATH_NPZ = "/home/bryan/data/brain_tumor/caidm_3d_96/data.npz"
+
+_C.DATA.SOURCE = "nifti"  # nifti or numpy
+_C.DATA.NIFTI = CN()
+_C.DATA.NIFTI.FOLDER_PATH = "/home/bryan/data/brain_tumor/caidm_3d_240"
+_C.DATA.NIFTI.TRAIN_LABELS = "/home/bryan/data/brain_tumor/classification/train_labels.csv"
+# folders with test data are titled "MGMT"
+_C.DATA.NIFTI.TEST_FOLDER_PREFIX = "MGMT"
+
+_C.DATA.NUMPY = CN()
+_C.DATA.NUMPY.FILEPATH_NPZ = "/home/bryan/data/brain_tumor/caidm_3d_96/data.npz"
 # /Users/bryan/gdrive/Radiology-Research/brain_tumor/data/caidm_3d_96/data.npz"
-_C.DATA.PATIENT_EXCLUSION_CSV = "/home/bryan/src/mgmt-promoter-methylation/mgmt/data/patient_exclusion.csv"
-# /Users/bryan/src/mgmt-promoter-methylation/mgmt/data/patient_exclusion.csv"
+_C.DATA.NUMPY.PATIENT_EXCLUSION_CSV = "/home/bryan/src/mgmt-promoter-methylation/mgmt/data/patient_exclusion.csv"
+
 _C.DATA.TRAIN_VAL_RATIO = 0.85
 _C.DATA.TRAIN_VAL_MANUAL_SEED = 10
 _C.DATA.BATCH_SIZE = 16
