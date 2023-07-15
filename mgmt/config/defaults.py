@@ -17,7 +17,7 @@ _C.TRAINER.accelerator = "auto"
 _C.TRAINER.strategy = "auto"
 _C.TRAINER.devices = "auto"
 _C.TRAINER.num_nodes = 1
-_C.TRAINER.precision = "16-mixed"  # "32-true"
+_C.TRAINER.precision = "32-true"  # "16-mixed"  # "32-true"
 _C.TRAINER.max_epochs = 10
 # Useful when debugging to only train on portion of dataset
 _C.TRAINER.limit_train_batches = 1.0

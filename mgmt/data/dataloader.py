@@ -1,18 +1,8 @@
 import csv
 import math
-import os
-import tempfile
-from datetime import datetime
-from glob import glob
 from typing import Dict, Optional
 
-import lightning.pytorch as pl
-import matplotlib.pyplot as plt
-import monai
 import numpy as np
-import pandas as pd
-import pytorch_lightning as pl
-import seaborn as sns
 import torch
 import torchio as tio
 from fvcore.common.config import CfgNode
@@ -20,7 +10,6 @@ from lightning.pytorch import LightningDataModule
 from loguru import logger
 from torch.utils.data import DataLoader
 
-from mgmt.data.constants import MODALITIES, MODALITY2NAME
 from mgmt.data.nifti import load_subjects as nifti_load_subjects
 from mgmt.data.numpy import load_subjects as numpy_load_subjects
 from mgmt.data.subject_transforms import CropLargestTumor
@@ -85,7 +74,7 @@ def subjects_train_val_split(
     logger.info(
         f"{len(subjects)} total subjects. {100*train_val_ratio:.2f}% train/val ratio ({len(train)} train, {len(val)} val)"
     )
-    logger.info(f"val: ({num_methylated} methylated, {len(val) - num_methylated} unmethylated")
+    logger.info(f"val: {num_methylated} methylated, {len(val) - num_methylated} unmethylated")
     return train, val
 
 

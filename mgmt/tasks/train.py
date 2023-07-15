@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 
+import matplotlib
 import numpy as np
 from fvcore.common.config import CfgNode
 from lightning.pytorch import Trainer, seed_everything
@@ -13,6 +14,8 @@ from lightning.pytorch.callbacks import (
 )
 from lightning.pytorch.loggers import TensorBoardLogger
 from loguru import logger
+
+matplotlib.use("Agg")
 
 from mgmt.config import get_cfg
 from mgmt.data.dataloader import DataModule

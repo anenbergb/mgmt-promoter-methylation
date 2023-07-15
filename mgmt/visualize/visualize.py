@@ -31,7 +31,7 @@ def plot_classification_grid(preds: np.ndarray, target: np.ndarray, patient_id: 
     for i, (pid, error_bucket, tar) in enumerate(zipped):
         grid[i // width, i % width] = error_bucket
         methyl = "(M)" if tar == 1 else ""
-        text = f"{pid}{methyl}"
+        text = f"{pid}\n{methyl}"
         ax.text(i % width, i // width, text, ha="center", va="center", color="black")
     ax.imshow(grid, cmap=cmap)
     ax.set_xticks([])
