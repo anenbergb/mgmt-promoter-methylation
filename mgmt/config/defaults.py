@@ -17,7 +17,7 @@ _C.TRAINER.accelerator = "auto"
 _C.TRAINER.strategy = "auto"
 _C.TRAINER.devices = "auto"
 _C.TRAINER.num_nodes = 1
-_C.TRAINER.precision = "32-true"
+_C.TRAINER.precision = "16-mixed"  # "32-true"
 _C.TRAINER.max_epochs = 10
 # Useful when debugging to only train on portion of dataset
 _C.TRAINER.limit_train_batches = 1.0
@@ -60,11 +60,11 @@ _C.DATA.NUMPY.PATIENT_EXCLUSION_CSV = "/home/bryan/src/mgmt-promoter-methylation
 _C.DATA.TRAIN_VAL_RATIO = 0.85
 _C.DATA.TRAIN_VAL_MANUAL_SEED = 10
 _C.DATA.BATCH_SIZE = 16
-_C.DATA.CROP_DIM = [40, 40, 8]
+_C.DATA.CROP_DIM = [32, 32, 32]  # [96, 96, 96]
 _C.DATA.SHAPE_MULTIPLE = 8
 _C.DATA.NUM_WORKERS = 12
 # 'fla', 't1w', 't1c', 't2w', 'concat'
-_C.DATA.MODALITY = "concat"
+_C.DATA.MODALITY = "t1c"  # "concat"
 _C.DATA.MODALITY_CONCAT = ["fla", "t1w", "t1c", "t2w"]
 
 

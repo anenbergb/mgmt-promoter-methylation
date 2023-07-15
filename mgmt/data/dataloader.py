@@ -21,10 +21,9 @@ from loguru import logger
 from torch.utils.data import DataLoader
 
 from mgmt.data.constants import MODALITIES, MODALITY2NAME
-from mgmt.data.subject_transforms import CropLargestTumor
-
-from mgmt.data.numpy import load_subjects as numpy_load_subjects
 from mgmt.data.nifti import load_subjects as nifti_load_subjects
+from mgmt.data.numpy import load_subjects as numpy_load_subjects
+from mgmt.data.subject_transforms import CropLargestTumor
 
 
 def load_patient_exclusion(filename: str) -> np.ndarray:
@@ -164,7 +163,10 @@ class DataModule(LightningDataModule):
             stage: It is used to separate setup logic for trainer.{fit,validate,test,predict}.
         """
         generator = torch.Generator().manual_seed(self.cfg.DATA.TRAIN_VAL_MANUAL_SEED)
-        train_subjects, val_subjects = subjects_train_val_split(self.subjects, self.cfg.DATA.TRAIN_VAL_RATIO, generator)
+
+        # TODO: allow processing of test subjects
+        subjects = [s for s in self.subjects if s.get("train_test_split", "train") == "train"]
+        train_subjects, val_subjects = subjects_train_val_split(subjects, self.cfg.DATA.TRAIN_VAL_RATIO, generator)
 
         self.preprocess = self.get_preprocessing_transform()
         augment = self.get_augmentation_transform()

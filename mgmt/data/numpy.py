@@ -1,8 +1,10 @@
 # Utilities for loading subjects from a numpy npz
-import numpy as np
 from typing import Dict, Optional
-from mgmt.data.constants import MODALITIES, MODALITY2NAME
+
+import numpy as np
 import torchio as tio
+
+from mgmt.data.constants import MODALITIES, MODALITY2NAME
 
 
 def load_data(file_name: str) -> dict[str, np.ndarray]:

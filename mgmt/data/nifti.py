@@ -20,7 +20,7 @@ def make_subject(folder_path: str, category_id: int = 0, train_test_split: str =
         tumor=tumor,
         category_id=category_id,
         category=category,
-        patient_id=patient_id,
+        patient_id=int(patient_id),
         patient_id_str=patient_id_str,
         train_test_split=train_test_split,
         **mri_images,
