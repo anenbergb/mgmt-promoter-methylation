@@ -67,6 +67,11 @@ _C.DATA.NUM_WORKERS = 12
 _C.DATA.MODALITY = "t1c"  # "concat"
 _C.DATA.MODALITY_CONCAT = ["fla", "t1w", "t1c", "t2w"]
 
+_C.PREPROCESS = CN()
+_C.PREPROCESS.TO_CANONICAL = CN({"ENABLED": True})
+_C.PREPROCESS.CROP_LARGEST_TUMOR = CN({"ENABLED": True})
+_C.PREPROCESS.CROP_LARGEST_TUMOR.crop_dim = [32, 32, 32]  # or None
+
 
 _C.SOLVER = CN()
 # Adam, AdamW

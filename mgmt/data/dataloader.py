@@ -164,13 +164,21 @@ class DataModule(LightningDataModule):
         self.train_set = tio.SubjectsDataset(train_subjects, transform=self.transform)
         self.val_set = tio.SubjectsDataset(val_subjects, transform=self.preprocess)
 
-    def get_preprocessing_transform(self):
+    def get_early_preprocessing_transform(self):
         # TODO: make this configurable
+        transforms = []
+        cfg = self.cfg.PREPROCESS
+        if cfg.TO_CANONICAL.ENABLED:
+            transforms.append(tio.ToCanonical())
+
+        # Consider using percentiles (0.5, 99.5) to control for possible outliers
+        tio.RescaleIntensity(out_min_max=(-1, 1), percentiles=(0, 100)),
+
+        if cfg.CROP_LARGEST_TUMOR.ENABLED:
+            transforms.append(CropLargestTumor(crop_dim=cfg.CROP_LARGEST_TUMOR.crop_dim))
+
         preprocess = tio.Compose(
             [
-                CropLargestTumor(crop_dim=self.cfg.DATA.CROP_DIM),
-                # Consider using percentiles (0.5, 99.5) to control for possible outliers
-                tio.RescaleIntensity(out_min_max=(-1, 1), percentiles=(0, 100)),
                 tio.EnsureShapeMultiple(self.cfg.DATA.SHAPE_MULTIPLE),
             ]
         )
@@ -184,6 +192,7 @@ class DataModule(LightningDataModule):
         - random rotations of the cropped tumor should be OK since you don't have the spatial context.
 
         """
+        # TODO: consider moving a lot of these augmentations before the crop
         augment = tio.Compose(
             [
                 tio.RandomAffine(
