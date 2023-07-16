@@ -2,6 +2,7 @@ import csv
 import math
 from typing import Dict, Optional
 
+import copy
 import numpy as np
 import torch
 import torchio as tio
@@ -164,46 +165,73 @@ class DataModule(LightningDataModule):
         self.train_set = tio.SubjectsDataset(train_subjects, transform=self.transform)
         self.val_set = tio.SubjectsDataset(val_subjects, transform=self.preprocess)
 
-    def get_early_preprocessing_transform(self):
-        # TODO: make this configurable
+    def get_transforms(self, train=True):
         transforms = []
-        cfg = self.cfg.PREPROCESS
-        if cfg.TO_CANONICAL.ENABLED:
+        if self.cfg.PREPROCESS.TO_CANONICAL_ENABLED:
             transforms.append(tio.ToCanonical())
 
-        # Consider using percentiles (0.5, 99.5) to control for possible outliers
-        tio.RescaleIntensity(out_min_max=(-1, 1), percentiles=(0, 100)),
 
-        if cfg.CROP_LARGEST_TUMOR.ENABLED:
-            transforms.append(CropLargestTumor(crop_dim=cfg.CROP_LARGEST_TUMOR.crop_dim))
 
-        preprocess = tio.Compose(
-            [
-                tio.EnsureShapeMultiple(self.cfg.DATA.SHAPE_MULTIPLE),
-            ]
-        )
-        # tio.OneHot() - one-hot encoding could be applied to the tumor label tensor
-        return preprocess
+
+
+
+
+        def rescale_intensity():
+            if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
+                kwargs = copy.copy(self.cfg.PREPROCESS.RESCALE_INTENSITY)
+                skull_mask = kwargs.pop("SKULL_MASK")
+                kwargs.pop("BEFORE_CROP")
+                masking_method = None
+                if skull_mask:
+                    masking_method = lambda x: x > 0.0
+                import ipdb
+                ipdb.set_trace()
+                transforms.append(tio.RescaleIntensity(masking_method=masking_method, **kwargs))
+            if train and self.cfg.AUGMENT.RANDOM_NOISE_ENABLED:
+                    transforms.append(tio.RandomNoise(**self.cfg.AUGMENT.RANDOM_NOISE))
+                    # rescale back to the target intensity scale range
+                    # do not need to apply percentile filtering or mask
+                    if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
+                        transforms.append(
+                            tio.RescaleIntensity(
+                            out_min_max=self.cfg.PREPROCESS.RESCALE_INTENSITY.out_min_max,
+                        ))
+
+
+        if train and self.cfg.AUGMENT.RANDOM_AFFINE_ENABLED:
+            transforms.append(tio.RandomAffine(**self.cfg.AUGMENT.RANDOM_AFFINE))
+
+        if train and self.cfg.AUGMENT.RANDOM_GAMMA_ENABLED:
+            transforms.append(tio.RandomGamma(**self.cfg.AUGMENT.RANDOM_GAMMA))
+        
+
+
+        if self.cfg.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP:
+            rescale_intensity()
+        if self.cfg.PREPROCESS.CROP_LARGEST_TUMOR_ENABLED:
+            transforms.append(CropLargestTumor(**self.cfg.PREPROCESS.CROP_LARGEST_TUMOR))
+        if not self.cfg.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP:
+            rescale_intensity()
+
+        if self.cfg.PREPROCESS.RESIZE_ENABLED:
+            transforms.append(tio.Resize(**self.cfg.PREPROCESS.RESIZE))
+        transforms.append(tio.EnsureShapeMultiple(self.cfg.PREPROCESS.ENSURE_SHAPE_MULTIPLE))
+        return tio.Compose(transforms)
 
     def get_augmentation_transform(self):
-        """
+        transforms = []
+        cfg = self.cfg.AUGMENT
 
-        RandomAffine
-        - random rotations of the cropped tumor should be OK since you don't have the spatial context.
 
-        """
-        # TODO: consider moving a lot of these augmentations before the crop
+        
+        if cfg.RANDOM_GAMMA_ENABLED:
+
+        
         augment = tio.Compose(
             [
-                tio.RandomAffine(
-                    # could consider slightly rescaling of (0.75, 1.25, 0.75, 1.25, 1, 1)
-                    scales=(1, 1, 1, 1, 1, 1),
-                    # only rotate about the z-axis (depth)
-                    degrees=(0, 0, 0, 0, 0, 360),
-                ),
+
                 tio.RandomGamma(p=0.5),
-                # https://torchio.readthedocs.io/transforms/augmentation.html#randomnoise
-                # greater than 0.1 looks pretty grainy
+               
                 tio.RandomNoise(p=0.5, std=(0, 0.1)),
                 tio.RandomMotion(p=0.1, translation=(-1, 1), degrees=(-1, 1)),
                 tio.RandomBiasField(p=0.1, coefficients=(-0.1, 0.1)),
