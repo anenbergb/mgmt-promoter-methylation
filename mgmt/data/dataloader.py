@@ -177,9 +177,6 @@ class DataModule(LightningDataModule):
                 masking_method = None
                 if skull_mask:
                     masking_method = lambda x: x > 0.0
-                import ipdb
-
-                ipdb.set_trace()
                 transforms.append(tio.RescaleIntensity(masking_method=masking_method, **kwargs))
             if train and self.cfg.AUGMENT.RANDOM_NOISE_ENABLED:
                 transforms.append(tio.RandomNoise(**self.cfg.AUGMENT.RANDOM_NOISE))
@@ -210,7 +207,7 @@ class DataModule(LightningDataModule):
 
         if self.cfg.PREPROCESS.RESIZE_ENABLED:
             transforms.append(tio.Resize(**self.cfg.PREPROCESS.RESIZE))
-        transforms.append(tio.EnsureShapeMultiple(self.cfg.PREPROCESS.ENSURE_SHAPE_MULTIPLE))
+        transforms.append(tio.EnsureShapeMultiple(**self.cfg.PREPROCESS.ENSURE_SHAPE_MULTIPLE))
         return tio.Compose(transforms)
 
     def train_dataloader(self):

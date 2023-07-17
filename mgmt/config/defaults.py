@@ -42,6 +42,16 @@ _C.TRAINER.barebones = False
 _C.TRAINER.sync_batchnorm = False
 _C.TRAINER.reload_dataloaders_every_n_epochs = 0
 
+_C.PROFILER = CN()
+_C.PROFILER.SIMPLE = CN()
+_C.PROFILER.SIMPLE.filename = "simple-profiler.txt"
+_C.PROFILER.SIMPLE.extended = True
+_C.PROFILER.ADVANCED = CN()
+_C.PROFILER.ADVANCED.filename = "advanced-profiler.txt"
+# his can be used to limit the number of functions reported for each action.
+# either an integer (to select a count of lines),
+# or a decimal fraction between 0.0 and 1.0 inclusive (to select a percentage of lines)
+_C.PROFILER.ADVANCED.line_count_restriction = 1.0
 
 _C.DATA = CN()
 
@@ -60,8 +70,7 @@ _C.DATA.NUMPY.PATIENT_EXCLUSION_CSV = "/home/bryan/src/mgmt-promoter-methylation
 _C.DATA.TRAIN_VAL_RATIO = 0.85
 _C.DATA.TRAIN_VAL_MANUAL_SEED = 10
 _C.DATA.BATCH_SIZE = 16
-_C.DATA.CROP_DIM = [32, 32, 32]  # [96, 96, 96]
-_C.DATA.NUM_WORKERS = 12
+_C.DATA.NUM_WORKERS = 4
 # 'fla', 't1w', 't1c', 't2w', 'concat'
 _C.DATA.MODALITY = "t1c"  # "concat"
 _C.DATA.MODALITY_CONCAT = ["fla", "t1w", "t1c", "t2w"]
@@ -78,7 +87,7 @@ _C.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP = True
 
 _C.PREPROCESS.CROP_LARGEST_TUMOR_ENABLED = True
 _C.PREPROCESS.CROP_LARGEST_TUMOR = CN()
-_C.PREPROCESS.CROP_LARGEST_TUMOR.crop_dim = [32, 32, 32]  # or None
+_C.PREPROCESS.CROP_LARGEST_TUMOR.crop_dim = [64, 64, 64]  # or None
 
 _C.PREPROCESS.RESIZE_ENABLED = True
 _C.PREPROCESS.RESIZE = CN()
@@ -86,9 +95,10 @@ _C.PREPROCESS.RESIZE.target_shape = [32, 32, 32]
 _C.PREPROCESS.RESIZE.image_interpolation = "linear"
 
 _C.PREPROCESS.ENSURE_SHAPE_MULTIPLE = CN()
-_C.PREPROCESS.ENSURE_SHAPE_MULTIPLE.target_shape = 8
+_C.PREPROCESS.ENSURE_SHAPE_MULTIPLE.target_multiple = [8, 8, 8]
 _C.PREPROCESS.ENSURE_SHAPE_MULTIPLE.method = "pad"  # 'crop', 'pad'
 
+_C.AUGMENT = CN()
 _C.AUGMENT.RANDOM_AFFINE_ENABLED = True
 _C.AUGMENT.RANDOM_AFFINE = CN()
 _C.AUGMENT.RANDOM_AFFINE.p = 1.0
