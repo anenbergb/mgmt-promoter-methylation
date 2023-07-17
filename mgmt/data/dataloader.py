@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from mgmt.data.nifti import load_subjects as nifti_load_subjects
 from mgmt.data.numpy import load_subjects as numpy_load_subjects
 from mgmt.data.subject_transforms import CropLargestTumor
+from mgmt.transforms.rescale_intensity import RescaleIntensity
 
 
 def load_patient_exclusion(filename: str) -> np.ndarray:
@@ -177,14 +178,14 @@ class DataModule(LightningDataModule):
                 masking_method = None
                 if skull_mask:
                     masking_method = lambda x: x > 0.0
-                transforms.append(tio.RescaleIntensity(masking_method=masking_method, **kwargs))
+                transforms.append(RescaleIntensity(masking_method=masking_method, **kwargs))
             if train and self.cfg.AUGMENT.RANDOM_NOISE_ENABLED:
                 transforms.append(tio.RandomNoise(**self.cfg.AUGMENT.RANDOM_NOISE))
                 # rescale back to the target intensity scale range
                 # do not need to apply percentile filtering or mask
                 if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
                     transforms.append(
-                        tio.RescaleIntensity(
+                        RescaleIntensity(
                             out_min_max=self.cfg.PREPROCESS.RESCALE_INTENSITY.out_min_max,
                         )
                     )
