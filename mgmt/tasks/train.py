@@ -1,7 +1,9 @@
 import argparse
+import copy
 import os
 import sys
 
+import matplotlib
 import numpy as np
 from fvcore.common.config import CfgNode
 from lightning.pytorch import Trainer, seed_everything
@@ -12,7 +14,10 @@ from lightning.pytorch.callbacks import (
     RichProgressBar,
 )
 from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.profilers import AdvancedProfiler, SimpleProfiler
 from loguru import logger
+
+matplotlib.use("Agg")
 
 from mgmt.config import get_cfg
 from mgmt.data.dataloader import DataModule
@@ -41,11 +46,21 @@ def main(cfg):
 
     tb_logger = TensorBoardLogger(save_dir=cfg.OUTPUT_DIR, version="logs", name="")
     callbacks = get_callbacks(cfg, max_steps)
-    trainer = Trainer(**cfg.TRAINER, callbacks=callbacks, logger=tb_logger)
+    trainer_kwargs = get_trainer_kwargs(cfg)
+    trainer = Trainer(**trainer_kwargs, callbacks=callbacks, logger=tb_logger)
 
     model = Classifier(cfg, steps_per_epoch=steps_per_epoch)
     # Distributed is initialized in fit, not init
     trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.CHECKPOINT.PATH)
+
+
+def get_trainer_kwargs(cfg: CfgNode):
+    kwargs = copy.copy(cfg.TRAINER)
+    if kwargs["profiler"] == "simple":
+        kwargs["profiler"] = SimpleProfiler(**cfg.PROFILER.SIMPLE)
+    elif kwargs["profiler"] == "advanced":
+        kwargs["profiler"] = AdvancedProfiler(**cfg.PROFILER.ADVANCED)
+    return kwargs
 
 
 def get_steps_per_epoch(cfg: CfgNode, datamodule: DataModule) -> int:

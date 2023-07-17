@@ -1,18 +1,9 @@
+import copy
 import csv
 import math
-import os
-import tempfile
-from datetime import datetime
-from glob import glob
 from typing import Dict, Optional
 
-import lightning.pytorch as pl
-import matplotlib.pyplot as plt
-import monai
 import numpy as np
-import pandas as pd
-import pytorch_lightning as pl
-import seaborn as sns
 import torch
 import torchio as tio
 from fvcore.common.config import CfgNode
@@ -20,13 +11,9 @@ from lightning.pytorch import LightningDataModule
 from loguru import logger
 from torch.utils.data import DataLoader
 
-from mgmt.data.constants import MODALITIES, MODALITY2NAME
+from mgmt.data.nifti import load_subjects as nifti_load_subjects
+from mgmt.data.numpy import load_subjects as numpy_load_subjects
 from mgmt.data.subject_transforms import CropLargestTumor
-
-
-def load_data(file_name: str) -> Dict[str, np.ndarray]:
-    data = np.load(file_name)
-    return {k: v for k, v in data.items()}
 
 
 def load_patient_exclusion(filename: str) -> np.ndarray:
@@ -37,16 +24,6 @@ def load_patient_exclusion(filename: str) -> np.ndarray:
     return arr
 
 
-def make_scalar_image(data: Dict[str, np.ndarray], patient_index: int = 0, modality: str = "t2w") -> tio.ScalarImage:
-    # (D,H,W,C) where D=48, C=1
-    assert modality in data
-    tensor = data[modality][patient_index]
-    # convert to (C,W,H,D)
-    tensor = np.transpose(tensor, axes=(3, 2, 1, 0))
-    name = MODALITY2NAME.get(modality)
-    return tio.ScalarImage(tensor=tensor, name=name)
-
-
 def make_concat_image(subject: tio.Subject, modality: list[str] = ["t2w"]) -> tio.ScalarImage:
     tensors = []
     for m in modality:
@@ -54,31 +31,6 @@ def make_concat_image(subject: tio.Subject, modality: list[str] = ["t2w"]) -> ti
         tensors.append(subject[m].tensor)
     tensor = torch.cat(tensors, dim=0)
     return tio.ScalarImage(tensor=tensor)
-
-
-def make_segmentation_image(
-    data: Dict[str, np.ndarray],
-    patient_index: int = 0,
-) -> tio.LabelMap:
-    # (D,H,W,C) where D=48, C=1
-    tensor = data["tum"][patient_index]
-    # convert to (C,W,H,D)
-    tensor = np.transpose(tensor, axes=(3, 2, 1, 0))
-    return tio.LabelMap(tensor=tensor, name="Tumor Segmentation")
-
-
-def make_subject(data: Dict[str, np.ndarray], patient_index: int = 0) -> tio.Subject:
-    category_id = data["lbl"][patient_index].item()
-    category = "methylated" if category_id == 1 else "unmethylated"
-    mri_images = {modality: make_scalar_image(data, patient_index, modality) for modality in MODALITIES}
-    subject = tio.Subject(
-        tumor=make_segmentation_image(data, patient_index),
-        category_id=category_id,
-        category=category,
-        patient_id=patient_index,
-        **mri_images,
-    )
-    return subject
 
 
 def get_max_shape(subjects):
@@ -123,7 +75,7 @@ def subjects_train_val_split(
     logger.info(
         f"{len(subjects)} total subjects. {100*train_val_ratio:.2f}% train/val ratio ({len(train)} train, {len(val)} val)"
     )
-    logger.info(f"val: ({num_methylated} methylated, {len(val) - num_methylated} unmethylated")
+    logger.info(f"val: {num_methylated} methylated, {len(val) - num_methylated} unmethylated")
     return train, val
 
 
@@ -170,13 +122,16 @@ class DataModule(LightningDataModule):
         prepare_data is called within a single process on CPU.
         https://lightning.ai/docs/pytorch/stable/data/datamodule.html#prepare-data
         """
-        data, patient_exclusions = self.download_data()
-        num_patients = len(data["lbl"])
-        self.subjects = []
-        for patient_id in range(num_patients):
-            if patient_id not in patient_exclusions:
-                self.subjects.append(make_subject(data, patient_id))
-
+        if self.cfg.DATA.SOURCE == "numpy":
+            subjects = numpy_load_subjects(self.cfg.NUMPY.FILEPATH_NPZ)
+            exs = load_patient_exclusion(self.cfg.DATA.PATIENT_EXCLUSION_CSV)
+            self.subjects = [s for s in subjects if s.patient_id not in exs]
+        elif self.cfg.DATA.SOURCE == "nifti":
+            self.subjects = nifti_load_subjects(
+                self.cfg.DATA.NIFTI.FOLDER_PATH,
+                self.cfg.DATA.NIFTI.TRAIN_LABELS,
+                self.cfg.DATA.NIFTI.TEST_FOLDER_PREFIX,
+            )
         self.add_combined_image()
 
     def add_combined_image(self):
@@ -184,11 +139,6 @@ class DataModule(LightningDataModule):
             for subject in self.subjects:
                 image = make_concat_image(subject, self.cfg.DATA.MODALITY_CONCAT)
                 subject.add_image(image, self.cfg.DATA.MODALITY)
-
-    def download_data(self):
-        data = load_data(self.cfg.DATA.FILEPATH_NPZ)
-        exs = load_patient_exclusion(self.cfg.DATA.PATIENT_EXCLUSION_CSV)
-        return data, exs
 
     def setup(self, stage=None):
         """
@@ -203,52 +153,62 @@ class DataModule(LightningDataModule):
             stage: It is used to separate setup logic for trainer.{fit,validate,test,predict}.
         """
         generator = torch.Generator().manual_seed(self.cfg.DATA.TRAIN_VAL_MANUAL_SEED)
-        train_subjects, val_subjects = subjects_train_val_split(self.subjects, self.cfg.DATA.TRAIN_VAL_RATIO, generator)
 
-        self.preprocess = self.get_preprocessing_transform()
-        augment = self.get_augmentation_transform()
-        self.transform = tio.Compose([self.preprocess, augment])
+        # TODO: allow processing of test subjects
+        subjects = [s for s in self.subjects if s.get("train_test_split", "train") == "train"]
+        train_subjects, val_subjects = subjects_train_val_split(subjects, self.cfg.DATA.TRAIN_VAL_RATIO, generator)
 
-        self.train_set = tio.SubjectsDataset(train_subjects, transform=self.transform)
-        self.val_set = tio.SubjectsDataset(val_subjects, transform=self.preprocess)
+        train_transforms = self.get_transforms(train=True)
+        val_transforms = self.get_transforms(train=False)
 
-    def get_preprocessing_transform(self):
-        # TODO: make this configurable
-        preprocess = tio.Compose(
-            [
-                CropLargestTumor(crop_dim=self.cfg.DATA.CROP_DIM),
-                # Consider using percentiles (0.5, 99.5) to control for possible outliers
-                tio.RescaleIntensity(out_min_max=(-1, 1), percentiles=(0, 100)),
-                tio.EnsureShapeMultiple(self.cfg.DATA.SHAPE_MULTIPLE),
-            ]
-        )
-        # tio.OneHot() - one-hot encoding could be applied to the tumor label tensor
-        return preprocess
+        self.train_set = tio.SubjectsDataset(train_subjects, transform=train_transforms)
+        self.val_set = tio.SubjectsDataset(val_subjects, transform=val_transforms)
 
-    def get_augmentation_transform(self):
-        """
+    def get_transforms(self, train=True):
+        transforms = []
+        if self.cfg.PREPROCESS.TO_CANONICAL_ENABLED:
+            transforms.append(tio.ToCanonical())
 
-        RandomAffine
-        - random rotations of the cropped tumor should be OK since you don't have the spatial context.
+        def rescale_intensity():
+            if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
+                kwargs = copy.copy(self.cfg.PREPROCESS.RESCALE_INTENSITY)
+                skull_mask = kwargs.pop("SKULL_MASK")
+                kwargs.pop("BEFORE_CROP")
+                masking_method = None
+                if skull_mask:
+                    masking_method = lambda x: x > 0.0
+                transforms.append(tio.RescaleIntensity(masking_method=masking_method, **kwargs))
+            if train and self.cfg.AUGMENT.RANDOM_NOISE_ENABLED:
+                transforms.append(tio.RandomNoise(**self.cfg.AUGMENT.RANDOM_NOISE))
+                # rescale back to the target intensity scale range
+                # do not need to apply percentile filtering or mask
+                if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
+                    transforms.append(
+                        tio.RescaleIntensity(
+                            out_min_max=self.cfg.PREPROCESS.RESCALE_INTENSITY.out_min_max,
+                        )
+                    )
 
-        """
-        augment = tio.Compose(
-            [
-                tio.RandomAffine(
-                    # could consider slightly rescaling of (0.75, 1.25, 0.75, 1.25, 1, 1)
-                    scales=(1, 1, 1, 1, 1, 1),
-                    # only rotate about the z-axis (depth)
-                    degrees=(0, 0, 0, 0, 0, 360),
-                ),
-                tio.RandomGamma(p=0.5),
-                # https://torchio.readthedocs.io/transforms/augmentation.html#randomnoise
-                # greater than 0.1 looks pretty grainy
-                tio.RandomNoise(p=0.5, std=(0, 0.1)),
-                tio.RandomMotion(p=0.1, translation=(-1, 1), degrees=(-1, 1)),
-                tio.RandomBiasField(p=0.1, coefficients=(-0.1, 0.1)),
-            ]
-        )
-        return augment
+        if train and self.cfg.AUGMENT.RANDOM_AFFINE_ENABLED:
+            transforms.append(tio.RandomAffine(**self.cfg.AUGMENT.RANDOM_AFFINE))
+        if train and self.cfg.AUGMENT.RANDOM_GAMMA_ENABLED:
+            transforms.append(tio.RandomGamma(**self.cfg.AUGMENT.RANDOM_GAMMA))
+        if train and self.cfg.AUGMENT.RANDOM_BIAS_FIELD:
+            transforms.append(tio.RandomBiasField(**self.cfg.AUGMENT.RANDOM_BIAS_FIELD))
+        if train and self.cfg.AUGMENT.RANDOM_MOTION_ENABLED:
+            transforms.append(tio.RandomMotion(**self.cfg.AUGMENT.RANDOM_MOTION))
+
+        if self.cfg.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP:
+            rescale_intensity()
+        if self.cfg.PREPROCESS.CROP_LARGEST_TUMOR_ENABLED:
+            transforms.append(CropLargestTumor(**self.cfg.PREPROCESS.CROP_LARGEST_TUMOR))
+        if not self.cfg.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP:
+            rescale_intensity()
+
+        if self.cfg.PREPROCESS.RESIZE_ENABLED:
+            transforms.append(tio.Resize(**self.cfg.PREPROCESS.RESIZE))
+        transforms.append(tio.EnsureShapeMultiple(**self.cfg.PREPROCESS.ENSURE_SHAPE_MULTIPLE))
+        return tio.Compose(transforms)
 
     def train_dataloader(self):
         """

@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import colors
+from matplotlib import cm, colors
+from monai.transforms.utils import rescale_array
 from monai.visualize import blend_images
+from PIL import Image
 
 # image = blend_images(
 #     # convert from BDHWC to HWC CHW where C=1, and D=48 3D depth channels
@@ -29,7 +31,7 @@ def plot_classification_grid(preds: np.ndarray, target: np.ndarray, patient_id: 
     for i, (pid, error_bucket, tar) in enumerate(zipped):
         grid[i // width, i % width] = error_bucket
         methyl = "(M)" if tar == 1 else ""
-        text = f"{pid}{methyl}"
+        text = f"{pid}\n{methyl}"
         ax.text(i % width, i // width, text, ha="center", va="center", color="black")
     ax.imshow(grid, cmap=cmap)
     ax.set_xticks([])
@@ -40,3 +42,31 @@ def plot_classification_grid(preds: np.ndarray, target: np.ndarray, patient_id: 
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
     plt.close(fig)
     return data
+
+
+def add_color_border(img, border_width=10, color="green"):
+    """
+    Assume img is shape (H,W,C)
+    """
+    assert isinstance(img, np.ndarray)
+    height = img.shape[0]
+    width = img.shape[1]
+    frame_height = 2 * border_width + height
+    frame_width = 2 * border_width + width
+    framed_img = Image.new("RGB", (frame_width, frame_height), color)
+    framed_img = np.array(framed_img)
+    framed_img[border_width:-border_width, border_width:-border_width] = img
+    return framed_img
+
+
+def segmentation_label_color(labels=[0, 1, 2, 4], cmap="hsv", rgb_255=True):
+    _cmap = cm.get_cmap(cmap)
+
+    labels_np = np.array(labels)
+    label_np = rescale_array(labels_np)
+    label_rgb = _cmap(label_np)
+    if rgb_255:
+        colors = [tuple((255.0 * l).astype(np.uint8)[:3]) for l in label_rgb]
+    else:
+        colors = [tuple(l[:3]) for l in label_rgb]
+    return colors

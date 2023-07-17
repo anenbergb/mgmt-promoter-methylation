@@ -17,7 +17,7 @@ _C.TRAINER.accelerator = "auto"
 _C.TRAINER.strategy = "auto"
 _C.TRAINER.devices = "auto"
 _C.TRAINER.num_nodes = 1
-_C.TRAINER.precision = "32-true"
+_C.TRAINER.precision = "32-true"  # "16-mixed"  # "32-true"
 _C.TRAINER.max_epochs = 10
 # Useful when debugging to only train on portion of dataset
 _C.TRAINER.limit_train_batches = 1.0
@@ -42,22 +42,96 @@ _C.TRAINER.barebones = False
 _C.TRAINER.sync_batchnorm = False
 _C.TRAINER.reload_dataloaders_every_n_epochs = 0
 
+_C.PROFILER = CN()
+_C.PROFILER.SIMPLE = CN()
+_C.PROFILER.SIMPLE.filename = "simple-profiler.txt"
+_C.PROFILER.SIMPLE.extended = True
+_C.PROFILER.ADVANCED = CN()
+_C.PROFILER.ADVANCED.filename = "advanced-profiler.txt"
+# his can be used to limit the number of functions reported for each action.
+# either an integer (to select a count of lines),
+# or a decimal fraction between 0.0 and 1.0 inclusive (to select a percentage of lines)
+_C.PROFILER.ADVANCED.line_count_restriction = 1.0
 
 _C.DATA = CN()
-_C.DATA.FILEPATH_NPZ = "/home/bryan/data/brain_tumor/caidm_3d_96/data.npz"
+
+_C.DATA.SOURCE = "nifti"  # nifti or numpy
+_C.DATA.NIFTI = CN()
+_C.DATA.NIFTI.FOLDER_PATH = "/home/bryan/data/brain_tumor/caidm_3d_240"
+_C.DATA.NIFTI.TRAIN_LABELS = "/home/bryan/data/brain_tumor/classification/train_labels.csv"
+# folders with test data are titled "MGMT"
+_C.DATA.NIFTI.TEST_FOLDER_PREFIX = "MGMT"
+
+_C.DATA.NUMPY = CN()
+_C.DATA.NUMPY.FILEPATH_NPZ = "/home/bryan/data/brain_tumor/caidm_3d_96/data.npz"
 # /Users/bryan/gdrive/Radiology-Research/brain_tumor/data/caidm_3d_96/data.npz"
-_C.DATA.PATIENT_EXCLUSION_CSV = "/home/bryan/src/mgmt-promoter-methylation/mgmt/data/patient_exclusion.csv"
-# /Users/bryan/src/mgmt-promoter-methylation/mgmt/data/patient_exclusion.csv"
+_C.DATA.NUMPY.PATIENT_EXCLUSION_CSV = "/home/bryan/src/mgmt-promoter-methylation/mgmt/data/patient_exclusion.csv"
+
 _C.DATA.TRAIN_VAL_RATIO = 0.85
 _C.DATA.TRAIN_VAL_MANUAL_SEED = 10
 _C.DATA.BATCH_SIZE = 16
-_C.DATA.CROP_DIM = [40, 40, 8]
-_C.DATA.SHAPE_MULTIPLE = 8
-_C.DATA.NUM_WORKERS = 12
+_C.DATA.NUM_WORKERS = 4
 # 'fla', 't1w', 't1c', 't2w', 'concat'
-_C.DATA.MODALITY = "concat"
+_C.DATA.MODALITY = "t1c"  # "concat"
 _C.DATA.MODALITY_CONCAT = ["fla", "t1w", "t1c", "t2w"]
 
+_C.PREPROCESS = CN()
+_C.PREPROCESS.TO_CANONICAL_ENABLED = True
+
+_C.PREPROCESS.RESCALE_INTENSITY_ENABLED = True
+_C.PREPROCESS.RESCALE_INTENSITY = CN()
+_C.PREPROCESS.RESCALE_INTENSITY.out_min_max = [-1, 1]
+_C.PREPROCESS.RESCALE_INTENSITY.percentiles = [0.5, 99.5]  # (0.5, 99.5) to control for possible outliers
+_C.PREPROCESS.RESCALE_INTENSITY.SKULL_MASK = True  # apply mask: lambda x: x > 0.0
+_C.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP = True
+
+_C.PREPROCESS.CROP_LARGEST_TUMOR_ENABLED = True
+_C.PREPROCESS.CROP_LARGEST_TUMOR = CN()
+_C.PREPROCESS.CROP_LARGEST_TUMOR.crop_dim = [64, 64, 64]  # or None
+
+_C.PREPROCESS.RESIZE_ENABLED = True
+_C.PREPROCESS.RESIZE = CN()
+_C.PREPROCESS.RESIZE.target_shape = [32, 32, 32]
+_C.PREPROCESS.RESIZE.image_interpolation = "linear"
+
+_C.PREPROCESS.ENSURE_SHAPE_MULTIPLE = CN()
+_C.PREPROCESS.ENSURE_SHAPE_MULTIPLE.target_multiple = [8, 8, 8]
+_C.PREPROCESS.ENSURE_SHAPE_MULTIPLE.method = "pad"  # 'crop', 'pad'
+
+_C.AUGMENT = CN()
+_C.AUGMENT.RANDOM_AFFINE_ENABLED = True
+_C.AUGMENT.RANDOM_AFFINE = CN()
+_C.AUGMENT.RANDOM_AFFINE.p = 1.0
+# could consider slightly rescaling of (0.75, 1.25, 0.75, 1.25, 1, 1)
+_C.AUGMENT.RANDOM_AFFINE.scales = [1, 1, 1, 1, 1, 1]
+# only rotate about the z-axis (depth)
+_C.AUGMENT.RANDOM_AFFINE.degrees = [0, 0, 0, 0, 0, 360]
+
+_C.AUGMENT.RANDOM_GAMMA_ENABLED = True
+_C.AUGMENT.RANDOM_GAMMA = CN()
+_C.AUGMENT.RANDOM_GAMMA.p = 0.5
+_C.AUGMENT.RANDOM_GAMMA.log_gamma = [-0.3, 0.3]
+
+# https://torchio.readthedocs.io/transforms/augmentation.html#randomnoise
+_C.AUGMENT.RANDOM_NOISE_ENABLED = True
+_C.AUGMENT.RANDOM_NOISE = CN()
+_C.AUGMENT.RANDOM_NOISE.p = 0.5
+_C.AUGMENT.RANDOM_NOISE.mean = [0.0, 0.0]
+_C.AUGMENT.RANDOM_NOISE.std = [0, 0.1]  # greater than 0.1 looks pretty grainy
+
+_C.AUGMENT.RANDOM_BIAS_FIELD_ENABLED = True
+_C.AUGMENT.RANDOM_BIAS_FIELD = CN()
+_C.AUGMENT.RANDOM_BIAS_FIELD.p = 0.1
+_C.AUGMENT.RANDOM_BIAS_FIELD.coefficients = [-0.1, 0.1]
+_C.AUGMENT.RANDOM_BIAS_FIELD.order = 3
+
+_C.AUGMENT.RANDOM_MOTION_ENABLED = True
+_C.AUGMENT.RANDOM_MOTION = CN()
+_C.AUGMENT.RANDOM_MOTION.p = 0.1
+_C.AUGMENT.RANDOM_MOTION.degrees = [1.0, 1.0]
+_C.AUGMENT.RANDOM_MOTION.translation = [-1.0, 1.0]
+_C.AUGMENT.RANDOM_MOTION.num_transforms = 2
+_C.AUGMENT.RANDOM_MOTION.image_interpolation = "linear"
 
 _C.SOLVER = CN()
 # Adam, AdamW

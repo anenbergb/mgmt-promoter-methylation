@@ -4,9 +4,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torchio as tio
 from matplotlib import font_manager
+from monai.visualize import blend_images
 from PIL import Image, ImageDraw, ImageFont
 from torchio.transforms.preprocessing.spatial.to_canonical import ToCanonical
 from torchio.visualization import color_labels, rotate
+
+from .visualize import add_color_border
 
 
 def plot_volume(
@@ -34,6 +37,7 @@ def plot_volume(
 
     if axes is None:
         fig, axes = plt.subplots(1, num_rows, figsize=figsize, squeeze=False)
+        axes = axes.flatten()
 
     # sag_axis, cor_axis, axi_axis = axes
 
@@ -90,6 +94,98 @@ def plot_volume(
     return fig
 
 
+def plot_volume_with_label(
+    image: tio.Image,
+    label: tio.LabelMap,
+    radiological=True,
+    channel=-1,  # default to foreground for binary maps
+    axes=None,
+    output_path=None,
+    show=True,
+    xlabels=True,
+    figsize=None,
+    reorient=True,
+    indices=None,
+    single_axis=None,  # one of (Sagittal, Coronal, Axial)
+    border_color=None,
+    border_width=10,
+    blend_alpha=0.25,
+    cmap="hsv",
+    # draw_crop
+):
+    fig = None
+
+    axes_names = "sagittal", "coronal", "axial"
+    if single_axis is not None:
+        assert single_axis in ("sagittal", "coronal", "axial")
+        axes_names = (single_axis,)
+    num_rows = len(axes_names)
+
+    if axes is None:
+        fig, axes = plt.subplots(1, num_rows, figsize=figsize, squeeze=False)
+        axes = axes.flatten()
+
+    def prepare_slices(im):
+        if reorient:
+            im = ToCanonical()(im)  # type: ignore[assignment]
+        data = im.data[channel]
+        indices_ = indices
+        if indices_ is None:
+            indices_ = np.array(data.shape) // 2
+        i, j, k = indices_
+        slice_x = rotate(data[i, :, :], radiological=radiological)
+        slice_y = rotate(data[:, j, :], radiological=radiological)
+        slice_z = rotate(data[:, :, k], radiological=radiological)
+        return slice_x, slice_y, slice_z
+
+    def blend_slice(mri_slice, label_slice):
+        blend = blend_images(
+            image=np.expand_dims(mri_slice, 0),
+            label=np.expand_dims(label_slice, 0),
+            alpha=blend_alpha,
+            cmap=cmap,
+            rescale_arrays=True,
+        )
+        blend = 255.0 * blend
+        blend = blend.astype(np.uint8)
+        blend = np.moveaxis(blend, 0, -1)  # CHW -> HWC
+        blend = np.ascontiguousarray(blend)
+        if border_color is not None:
+            blend = add_color_border(blend, border_width, border_color)
+        return blend
+
+    image_slices = prepare_slices(image)
+    label_slices = prepare_slices(label)
+    slice_x, slice_y, slice_z = (blend_slice(i, l) for i, l in zip(image_slices, label_slices))
+
+    kwargs = {}
+    sr, sa, ss = image.spacing
+    kwargs["origin"] = "lower"
+
+    axes_map = {
+        "sagittal": {"aspect": ss / sa, "slice": slice_x, "xlabel": "A", "ylabel": "S", "title": "Sagittal"},
+        "coronal": {"aspect": ss / sr, "slice": slice_y, "xlabel": "R", "ylabel": "S", "title": "Coronal"},
+        "axial": {"aspect": sa / sr, "slice": slice_z, "xlabel": "R", "ylabel": "A", "title": "Axial"},
+    }
+
+    for i, axes_name in enumerate(axes_names):
+        ax_map = axes_map[axes_name]
+        axes[i].imshow(ax_map["slice"], aspect=ax_map["aspect"], **kwargs)
+        if xlabels:
+            axes[i].set_xlabel(ax_map["xlabel"])
+        axes[i].set_ylabel(ax_map["ylabel"])
+        axes[i].invert_xaxis()
+        axes[i].set_title(ax_map["title"])
+
+    if fig is not None:
+        fig.tight_layout(pad=0)
+    if output_path is not None and fig is not None:
+        fig.savefig(output_path)
+    if show:
+        plt.show()
+    return fig
+
+
 def plot_subject(
     subject: tio.Subject,
     cmap_dict=None,
@@ -97,7 +193,7 @@ def plot_subject(
     figsize=None,
     clear_axes=True,
     return_fig=False,
-    single_axis=None,  # one of (Sagittal, Coronal, Axial)
+    single_axis=None,  # one of (sagittal, coronal, axial)
     add_metadata=False,
     **kwargs,
 ):

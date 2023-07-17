@@ -48,6 +48,24 @@ def largest_tumor_crop_bounds(subject: Subject, crop_dim: tuple[int, int, int] |
     return crop_bounds
 
 
+def object_slice_to_dimensions(object_slice: tuple[slice, slice, slice]) -> tuple[int, int, int]:
+    dimensions = []
+    for slc in object_slice:
+        dimensions.append(slc.stop - slc.start)
+    return tuple(dimensions)
+
+
+def tumor_crop_dimensions(subject: Subject) -> list[tuple[int, int, int]]:
+    assert "tumor" in subject
+    tumor = subject.tumor.numpy()
+    assert tumor.shape[0] == 1
+    label_mask, num_labels = make_label_mask(tumor[0])
+    assert num_labels > 0
+    objects = scipy.ndimage.find_objects(label_mask)
+    object_dims = [object_slice_to_dimensions(o) for o in objects]
+    return object_dims
+
+
 class CropLargestTumor(SpatialTransform):
     def __init__(self, crop_dim: tuple[int, int, int] | None = None, **kwargs):
         super().__init__(**kwargs)
