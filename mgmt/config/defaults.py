@@ -72,8 +72,8 @@ _C.PREPROCESS.TO_CANONICAL_ENABLED = True
 _C.PREPROCESS.RESCALE_INTENSITY_ENABLED = True
 _C.PREPROCESS.RESCALE_INTENSITY = CN()
 _C.PREPROCESS.RESCALE_INTENSITY.out_min_max = [-1, 1]
-_C.PREPROCESS.RESCALE_INTENSITY.percentiles = [0.5, 99.5] # (0.5, 99.5) to control for possible outliers
-_C.PREPROCESS.RESCALE_INTENSITY.SKULL_MASK = True # apply mask: lambda x: x > 0.0
+_C.PREPROCESS.RESCALE_INTENSITY.percentiles = [0.5, 99.5]  # (0.5, 99.5) to control for possible outliers
+_C.PREPROCESS.RESCALE_INTENSITY.SKULL_MASK = True  # apply mask: lambda x: x > 0.0
 _C.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP = True
 
 _C.PREPROCESS.CROP_LARGEST_TUMOR_ENABLED = True
@@ -87,7 +87,7 @@ _C.PREPROCESS.RESIZE.image_interpolation = "linear"
 
 _C.PREPROCESS.ENSURE_SHAPE_MULTIPLE = CN()
 _C.PREPROCESS.ENSURE_SHAPE_MULTIPLE.target_shape = 8
-_C.PREPROCESS.ENSURE_SHAPE_MULTIPLE.method = "pad" # 'crop', 'pad'
+_C.PREPROCESS.ENSURE_SHAPE_MULTIPLE.method = "pad"  # 'crop', 'pad'
 
 _C.AUGMENT.RANDOM_AFFINE_ENABLED = True
 _C.AUGMENT.RANDOM_AFFINE = CN()
@@ -102,12 +102,26 @@ _C.AUGMENT.RANDOM_GAMMA = CN()
 _C.AUGMENT.RANDOM_GAMMA.p = 0.5
 _C.AUGMENT.RANDOM_GAMMA.log_gamma = [-0.3, 0.3]
 
- # https://torchio.readthedocs.io/transforms/augmentation.html#randomnoise
+# https://torchio.readthedocs.io/transforms/augmentation.html#randomnoise
 _C.AUGMENT.RANDOM_NOISE_ENABLED = True
 _C.AUGMENT.RANDOM_NOISE = CN()
 _C.AUGMENT.RANDOM_NOISE.p = 0.5
 _C.AUGMENT.RANDOM_NOISE.mean = [0.0, 0.0]
-_C.AUGMENT.RANDOM_NOISE.std = [0, 0.1] # greater than 0.1 looks pretty grainy
+_C.AUGMENT.RANDOM_NOISE.std = [0, 0.1]  # greater than 0.1 looks pretty grainy
+
+_C.AUGMENT.RANDOM_BIAS_FIELD_ENABLED = True
+_C.AUGMENT.RANDOM_BIAS_FIELD = CN()
+_C.AUGMENT.RANDOM_BIAS_FIELD.p = 0.1
+_C.AUGMENT.RANDOM_BIAS_FIELD.coefficients = [-0.1, 0.1]
+_C.AUGMENT.RANDOM_BIAS_FIELD.order = 3
+
+_C.AUGMENT.RANDOM_MOTION_ENABLED = True
+_C.AUGMENT.RANDOM_MOTION = CN()
+_C.AUGMENT.RANDOM_MOTION.p = 0.1
+_C.AUGMENT.RANDOM_MOTION.degrees = [1.0, 1.0]
+_C.AUGMENT.RANDOM_MOTION.translation = [-1.0, 1.0]
+_C.AUGMENT.RANDOM_MOTION.num_transforms = 2
+_C.AUGMENT.RANDOM_MOTION.image_interpolation = "linear"
 
 _C.SOLVER = CN()
 # Adam, AdamW

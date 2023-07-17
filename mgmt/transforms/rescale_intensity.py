@@ -1,7 +1,7 @@
 import torch
-
 import torchio as tio
 from torchio import RescaleIntensity as _RescaleIntensity
+
 
 class RescaleIntensity(_RescaleIntensity):
     """Rescale intensity values to a certain range.

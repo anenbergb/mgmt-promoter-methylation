@@ -1,8 +1,8 @@
+import copy
 import csv
 import math
 from typing import Dict, Optional
 
-import copy
 import numpy as np
 import torch
 import torchio as tio
@@ -158,23 +158,16 @@ class DataModule(LightningDataModule):
         subjects = [s for s in self.subjects if s.get("train_test_split", "train") == "train"]
         train_subjects, val_subjects = subjects_train_val_split(subjects, self.cfg.DATA.TRAIN_VAL_RATIO, generator)
 
-        self.preprocess = self.get_preprocessing_transform()
-        augment = self.get_augmentation_transform()
-        self.transform = tio.Compose([self.preprocess, augment])
+        train_transforms = self.get_transforms(train=True)
+        val_transforms = self.get_transforms(train=False)
 
-        self.train_set = tio.SubjectsDataset(train_subjects, transform=self.transform)
-        self.val_set = tio.SubjectsDataset(val_subjects, transform=self.preprocess)
+        self.train_set = tio.SubjectsDataset(train_subjects, transform=train_transforms)
+        self.val_set = tio.SubjectsDataset(val_subjects, transform=val_transforms)
 
     def get_transforms(self, train=True):
         transforms = []
         if self.cfg.PREPROCESS.TO_CANONICAL_ENABLED:
             transforms.append(tio.ToCanonical())
-
-
-
-
-
-
 
         def rescale_intensity():
             if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
@@ -185,26 +178,28 @@ class DataModule(LightningDataModule):
                 if skull_mask:
                     masking_method = lambda x: x > 0.0
                 import ipdb
+
                 ipdb.set_trace()
                 transforms.append(tio.RescaleIntensity(masking_method=masking_method, **kwargs))
             if train and self.cfg.AUGMENT.RANDOM_NOISE_ENABLED:
-                    transforms.append(tio.RandomNoise(**self.cfg.AUGMENT.RANDOM_NOISE))
-                    # rescale back to the target intensity scale range
-                    # do not need to apply percentile filtering or mask
-                    if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
-                        transforms.append(
-                            tio.RescaleIntensity(
+                transforms.append(tio.RandomNoise(**self.cfg.AUGMENT.RANDOM_NOISE))
+                # rescale back to the target intensity scale range
+                # do not need to apply percentile filtering or mask
+                if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
+                    transforms.append(
+                        tio.RescaleIntensity(
                             out_min_max=self.cfg.PREPROCESS.RESCALE_INTENSITY.out_min_max,
-                        ))
-
+                        )
+                    )
 
         if train and self.cfg.AUGMENT.RANDOM_AFFINE_ENABLED:
             transforms.append(tio.RandomAffine(**self.cfg.AUGMENT.RANDOM_AFFINE))
-
         if train and self.cfg.AUGMENT.RANDOM_GAMMA_ENABLED:
             transforms.append(tio.RandomGamma(**self.cfg.AUGMENT.RANDOM_GAMMA))
-        
-
+        if train and self.cfg.AUGMENT.RANDOM_BIAS_FIELD:
+            transforms.append(tio.RandomBiasField(**self.cfg.AUGMENT.RANDOM_BIAS_FIELD))
+        if train and self.cfg.AUGMENT.RANDOM_MOTION_ENABLED:
+            transforms.append(tio.RandomMotion(**self.cfg.AUGMENT.RANDOM_MOTION))
 
         if self.cfg.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP:
             rescale_intensity()
@@ -217,27 +212,6 @@ class DataModule(LightningDataModule):
             transforms.append(tio.Resize(**self.cfg.PREPROCESS.RESIZE))
         transforms.append(tio.EnsureShapeMultiple(self.cfg.PREPROCESS.ENSURE_SHAPE_MULTIPLE))
         return tio.Compose(transforms)
-
-    def get_augmentation_transform(self):
-        transforms = []
-        cfg = self.cfg.AUGMENT
-
-
-        
-        if cfg.RANDOM_GAMMA_ENABLED:
-
-        
-        augment = tio.Compose(
-            [
-
-                tio.RandomGamma(p=0.5),
-               
-                tio.RandomNoise(p=0.5, std=(0, 0.1)),
-                tio.RandomMotion(p=0.1, translation=(-1, 1), degrees=(-1, 1)),
-                tio.RandomBiasField(p=0.1, coefficients=(-0.1, 0.1)),
-            ]
-        )
-        return augment
 
     def train_dataloader(self):
         """
