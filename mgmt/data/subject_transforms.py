@@ -71,10 +71,14 @@ class CropLargestTumor(SpatialTransform):
         super().__init__(**kwargs)
         self.crop_dim = crop_dim
         self.args_names = ["crop_dim"]
+        if "include" in kwargs:
+            self.include = ["tumor", *kwargs["include"]]
+            kwargs.pop("include")
+        self.kwargs = kwargs
 
     def apply_transform(self, subject: Subject) -> Subject:
         crop_bounds = largest_tumor_crop_bounds(subject, self.crop_dim)
-        subject = Crop(crop_bounds).apply_transform(subject)
+        subject = Crop(cropping=crop_bounds, include=self.include, **self.kwargs).apply_transform(subject)
         return subject
 
     def is_invertible(self):

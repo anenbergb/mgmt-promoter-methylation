@@ -25,6 +25,8 @@ def load_patient_exclusion(filename: str) -> np.ndarray:
     return arr
 
 
+# TODO: probably want to perform concat in the module_module, so that rescale
+# intensity can be applied independently to each modality
 def make_concat_image(subject: tio.Subject, modality: list[str] = ["t2w"]) -> tio.ScalarImage:
     tensors = []
     for m in modality:
@@ -80,6 +82,17 @@ def subjects_train_val_split(
     return train, val
 
 
+from torch.utils.data._utils.collate import collate, default_collate_fn_map
+
+
+def default_collate_wrapper(batch):
+    print("default collate!!!")
+    import ipdb
+
+    ipdb.set_trace()
+    return collate(batch, collate_fn_map=default_collate_fn_map)
+
+
 # IDEA: Could define an argument class that is passed to init
 
 
@@ -128,9 +141,15 @@ class DataModule(LightningDataModule):
             exs = load_patient_exclusion(self.cfg.DATA.PATIENT_EXCLUSION_CSV)
             self.subjects = [s for s in subjects if s.patient_id not in exs]
         elif self.cfg.DATA.SOURCE == "nifti":
+            modality = self.cfg.DATA.MODALITY
+            if modality == "concat":
+                modality = self.cfg.DATA.MODALITY_CONCAT
+            else:
+                modality = [modality]
             self.subjects = nifti_load_subjects(
                 self.cfg.DATA.NIFTI.FOLDER_PATH,
                 self.cfg.DATA.NIFTI.TRAIN_LABELS,
+                modality,
                 self.cfg.DATA.NIFTI.TEST_FOLDER_PREFIX,
             )
         self.add_combined_image()
@@ -216,11 +235,13 @@ class DataModule(LightningDataModule):
         Trainer fit() method calls this.
         https://lightning.ai/docs/pytorch/stable/data/datamodule.html#train-dataloader
         """
+
         return DataLoader(
             self.train_set,
             batch_size=self.cfg.DATA.BATCH_SIZE,
             num_workers=self.cfg.DATA.NUM_WORKERS,
             pin_memory=True,
+            # collate_fn=default_collate_wrapper,
         )
 
     def val_dataloader(self):
@@ -228,5 +249,9 @@ class DataModule(LightningDataModule):
         https://lightning.ai/docs/pytorch/stable/data/datamodule.html#val-dataloader
         """
         return DataLoader(
-            self.val_set, batch_size=self.cfg.DATA.BATCH_SIZE, num_workers=self.cfg.DATA.NUM_WORKERS, pin_memory=True
+            self.val_set,
+            batch_size=self.cfg.DATA.BATCH_SIZE,
+            num_workers=self.cfg.DATA.NUM_WORKERS,
+            pin_memory=True,
+            # collate_fn=default_collate_wrapper,
         )

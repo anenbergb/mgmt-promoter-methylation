@@ -196,8 +196,15 @@ class Classifier(LightningModule):
         """
         batch_subjects = get_subjects_from_batch(batch)
         for subject, pred, target in zip(batch_subjects, binary_preds, targets):
+            # TODO: make sure this works for concat mode
             image = plot_subject(
-                subject, show=False, return_fig=False, figsize=(6.4, 1.6), single_axis="axial", add_metadata=True
+                subject,
+                show=False,
+                return_fig=False,
+                figsize=(6.4, 1.6),
+                single_axis="axial",
+                add_metadata=True,
+                # subject_include=["tumor", self.cfg.DATA.MODALITY],
             )
             color = "green" if pred == target else "red"
             image = add_color_border(image, color=color)
