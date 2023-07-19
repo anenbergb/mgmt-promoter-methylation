@@ -96,7 +96,7 @@ def get_callbacks(cfg: CfgNode, max_steps: int) -> list[Callback]:
     # maybe add lightning.pytorch.callbacks.EarlyStopping
     # TODO: add scheduler https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_intermediate_2.html
     device_stats = DeviceStatsMonitor(cpu_stats=True)
-    return [lr_monitor, progress_bar, checkpoint, device_stats]
+    return [lr_monitor, progress_bar, checkpoint]
 
 
 def setup_config(args: argparse.Namespace):
