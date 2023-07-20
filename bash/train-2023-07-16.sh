@@ -81,3 +81,41 @@ EXPR_DIR=/home/bryan/expr/brain_tumor/2023-07-16/try3
 # PREPROCESS.CROP_LARGEST_TUMOR.crop_dim "[32, 32, 32]" \
 # AUGMENT.RANDOM_AFFINE_ENABLED False \
 # AUGMENT.RANDOM_BIAS_FIELD_ENABLED False
+
+EXPR_DIR=/home/bryan/expr/brain_tumor/2023-07-16/try4
+
+python mgmt/tasks/train.py OUTPUT_DIR $EXPR_DIR/run1 \
+TRAINER.max_epochs 50 \
+DATA.MODALITY t1c \
+PREPROCESS.CROP_LARGEST_TUMOR.crop_dim None \
+AUGMENT.RANDOM_AFFINE_ENABLED False \
+AUGMENT.RANDOM_BIAS_FIELD_ENABLED False \
+MODEL.RESNET.conv1_t_size 3
+
+EXPR_DIR=/home/bryan/expr/brain_tumor/2023-07-16/resnet-custom-try1
+
+python mgmt/tasks/train.py OUTPUT_DIR $EXPR_DIR/run1 \
+TRAINER.max_epochs 50 \
+DATA.MODALITY t1c \
+PREPROCESS.CROP_LARGEST_TUMOR.crop_dim None \
+AUGMENT.RANDOM_AFFINE_ENABLED False \
+AUGMENT.RANDOM_BIAS_FIELD_ENABLED False \
+MODEL.NAME ResNet
+
+python mgmt/tasks/train.py OUTPUT_DIR $EXPR_DIR/run2 \
+TRAINER.max_epochs 50 \
+DATA.MODALITY t1c \
+PREPROCESS.CROP_LARGEST_TUMOR.crop_dim None \
+AUGMENT.RANDOM_AFFINE_ENABLED False \
+AUGMENT.RANDOM_BIAS_FIELD_ENABLED False \
+MODEL.NAME ResNet \
+MODEL.ResNet.block bottleneck
+
+python mgmt/tasks/train.py OUTPUT_DIR $EXPR_DIR/run3 \
+TRAINER.max_epochs 50 \
+DATA.MODALITY t1c \
+PREPROCESS.CROP_LARGEST_TUMOR.crop_dim None \
+AUGMENT.RANDOM_AFFINE_ENABLED False \
+AUGMENT.RANDOM_BIAS_FIELD_ENABLED False \
+MODEL.NAME ResNet \
+PREPROCESS.RESIZE.target_shape "[64, 64, 32]"
