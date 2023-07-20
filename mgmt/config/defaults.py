@@ -91,7 +91,7 @@ _C.PREPROCESS.CROP_LARGEST_TUMOR.crop_dim = [64, 64, 64]  # or None
 
 _C.PREPROCESS.RESIZE_ENABLED = True
 _C.PREPROCESS.RESIZE = CN()
-_C.PREPROCESS.RESIZE.target_shape = [32, 32, 32]
+_C.PREPROCESS.RESIZE.target_shape = [64, 64, 32]
 _C.PREPROCESS.RESIZE.image_interpolation = "linear"
 
 _C.PREPROCESS.ENSURE_SHAPE_MULTIPLE = CN()
@@ -209,6 +209,47 @@ _C.MODEL.RESNET.no_max_pool = False
 _C.MODEL.RESNET.shortcut_type = "B"
 _C.MODEL.RESNET.widen_factor = 1.0
 _C.MODEL.RESNET.num_classes = 1
+
+_C.MODEL.ResNet = CN()
+_C.MODEL.ResNet.block = "basic"
+_C.MODEL.ResNet.layers = [1, 1, 1, 1]
+_C.MODEL.ResNet.block_inplanes = [16, 32, 64, 128]
+_C.MODEL.ResNet.spatial_dims = 3
+_C.MODEL.ResNet.conv1_t_size = 3
+_C.MODEL.ResNet.conv1_t_stride = 1
+_C.MODEL.ResNet.no_max_pool = False
+_C.MODEL.ResNet.shortcut_type = "B"
+_C.MODEL.ResNet.widen_factor = 1.0
+_C.MODEL.ResNet.num_classes = 1
+
+# TODO: add support for efficient net
+_C.MODEL.EfficientNet = CN()
+# string = (
+#     f"r{self.num_repeat}_k{self.kernel_size}_s{self.stride}{self.stride}"
+#     f"_e{self.expand_ratio}_i{self.input_filters}_o{self.output_filters}"
+#     f"_se{self.se_ratio}"
+# )
+# if not self.id_skip:
+#     string += "_noskip"
+_C.MODEL.EfficientNet.blocks_args_str = [
+    "r1_k3_s11_e1_i32_o16_se0.25",
+    "r2_k3_s22_e6_i16_o24_se0.25",
+    "r2_k5_s22_e6_i24_o40_se0.25",
+    "r3_k3_s22_e6_i40_o80_se0.25",
+    "r3_k5_s11_e6_i80_o112_se0.25",
+    "r4_k5_s22_e6_i112_o192_se0.25",
+    "r1_k3_s11_e6_i192_o320_se0.25",
+]
+_C.MODEL.EfficientNet.spatial_dims = 3
+_C.MODEL.EfficientNet.num_classes = 1
+_C.MODEL.EfficientNet.width_coefficient = 1.0
+_C.MODEL.EfficientNet.depth_coefficient = 1.0
+_C.MODEL.EfficientNet.dropout_rate = 0.2
+_C.MODEL.EfficientNet.image_size = 64
+_C.MODEL.EfficientNet.norm = ["batch", {"eps": 1e-3, "momentum": 0.01}]
+# ["layer", {"eps": 1e-3, "normalized_shape": (10, 10, 10)}]
+_C.MODEL.EfficientNet.drop_connect_rate = 0.2
+_C.MODEL.EfficientNet.depth_divisor = 8
 
 _C.METRICS = CN()
 _C.METRICS.THRESHOLD = 0.5

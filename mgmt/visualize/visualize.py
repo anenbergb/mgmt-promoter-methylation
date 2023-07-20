@@ -60,6 +60,11 @@ def add_color_border(img, border_width=10, color="green"):
 
 
 def segmentation_label_color(labels=[0, 1, 2, 4], cmap="hsv", rgb_255=True):
+    """
+    Generate the label color corresponding to the cmap
+
+    Visualize the color with Image.new("RGB", (50, 50), rgb_color)
+    """
     _cmap = cm.get_cmap(cmap)
 
     labels_np = np.array(labels)

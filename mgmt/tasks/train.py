@@ -9,6 +9,7 @@ from fvcore.common.config import CfgNode
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import (
     Callback,
+    DeviceStatsMonitor,
     LearningRateMonitor,
     ModelCheckpoint,
     RichProgressBar,
@@ -26,7 +27,7 @@ from mgmt.utils.logger import setup_logger
 from mgmt.utils.progress_bar import ProgressBar
 
 
-def main(cfg):
+def main(cfg: CfgNode):
     """
     Trainer
     - https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.trainer.trainer.Trainer.html
@@ -94,7 +95,7 @@ def get_callbacks(cfg: CfgNode, max_steps: int) -> list[Callback]:
     # progress_bar = RichProgressBar()
     # maybe add lightning.pytorch.callbacks.EarlyStopping
     # TODO: add scheduler https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_intermediate_2.html
-
+    device_stats = DeviceStatsMonitor(cpu_stats=True)
     return [lr_monitor, progress_bar, checkpoint]
 
 

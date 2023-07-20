@@ -6,12 +6,15 @@ import torchio as tio
 from mgmt.data.constants import MODALITIES, MODALITY2NAME
 
 
-def make_subject(folder_path: str, category_id: int = 0, train_test_split: str = "train") -> tio.Subject:
+def make_subject(
+    folder_path: str, category_id: int = 0, modality: list[str] = ["t2w"], train_test_split: str = "train"
+) -> tio.Subject:
     category = "methylated" if category_id == 1 else "unmethylated"
     mri_images = {}
-    for modality, name in MODALITY2NAME.items():
-        file_path = os.path.join(folder_path, f"{modality}.nii.gz")
-        mri_images[modality] = tio.ScalarImage(path=file_path, name=name)
+    for mo in modality:
+        name = MODALITY2NAME.get(mo, "modality")
+        file_path = os.path.join(folder_path, f"{mo}.nii.gz")
+        mri_images[mo] = tio.ScalarImage(path=file_path, name=name)
     tumor = tio.LabelMap(path=os.path.join(folder_path, "seg.nii.gz"), name="Tumor Segmentation")
     # patient_id_str is formatted P-00000 or MGMT-025579
     patient_id_str = os.path.basename(folder_path)
@@ -55,7 +58,9 @@ def get_subject_folders(dataset_folder: str) -> list[str]:
     return patient_folders
 
 
-def load_subjects(dataset_folder: str, label_csv_path: str, test_folder_prefix: str = "MGMT") -> list[tio.Subject]:
+def load_subjects(
+    dataset_folder: str, label_csv_path: str, modality: list[str] = ["t2w"], test_folder_prefix: str = "MGMT"
+) -> list[tio.Subject]:
     label_map = load_label_csv(label_csv_path)
     subject_folders = get_subject_folders(dataset_folder)
     subjects = []
@@ -65,6 +70,6 @@ def load_subjects(dataset_folder: str, label_csv_path: str, test_folder_prefix: 
         folder_id = folder_name.split("-")[-1]
         category_id = label_map.get(folder_id, 0)
         train_test_split = "test" if folder_name.startswith(test_folder_prefix) else "train"
-        subjects.append(make_subject(subject_folder, category_id, train_test_split))
+        subjects.append(make_subject(subject_folder, category_id, modality, train_test_split))
     subjects = sorted(subjects, key=lambda x: x.patient_id_str)
     return subjects

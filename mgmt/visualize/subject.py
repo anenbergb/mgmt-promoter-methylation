@@ -195,6 +195,7 @@ def plot_subject(
     return_fig=False,
     single_axis=None,  # one of (sagittal, coronal, axial)
     add_metadata=False,
+    subject_include=None,
     **kwargs,
 ):
     num_images = len(subject)
@@ -219,7 +220,7 @@ def plot_subject(
     # The array of axes must be 2D so that it can be indexed correctly within
     # the plot_volume() function
     axes = axes.T if many_images else axes.reshape(-1, num_rows)
-    iterable = enumerate(subject.get_images_dict(intensity_only=False).items())
+    iterable = enumerate(subject.get_images_dict(include=subject_include, intensity_only=False).items())
     for image_index, (name, image) in iterable:
         image_axes = axes[image_index]
         cmap = None
