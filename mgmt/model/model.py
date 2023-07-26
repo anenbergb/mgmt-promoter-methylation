@@ -1,6 +1,8 @@
 import monai
 from fvcore.common.config import CfgNode
 
+from mgmt.model.efficientnet import EfficientNet
+
 
 def get_n_input_channels(cfg: CfgNode) -> int:
     n_input_channels = 1
@@ -23,5 +25,5 @@ def build_model(cfg: CfgNode):
     elif cfg.MODEL.NAME == "EfficientNet":
         model_args = cfg.MODEL.EfficientNet
         model_args["in_channels"] = input_channels
-        model = monai.networks.nets.efficientnet.EfficientNet(**model_args)
+        model = EfficientNet(**model_args)
     return model

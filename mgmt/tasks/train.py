@@ -51,6 +51,7 @@ def main(cfg: CfgNode):
     trainer = Trainer(**trainer_kwargs, callbacks=callbacks, logger=tb_logger)
 
     model = Classifier(cfg, steps_per_epoch=steps_per_epoch)
+    logger.info(f"Saving outputs to {cfg.OUTPUT_DIR}")
     # Distributed is initialized in fit, not init
     trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.CHECKPOINT.PATH)
 
