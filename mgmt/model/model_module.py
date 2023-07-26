@@ -11,7 +11,7 @@ from mgmt.data_science.plot_center_mass import add_color_border
 from mgmt.model import build_model
 from mgmt.utils.lr_scheduler import build_lr_scheduler
 from mgmt.utils.optimizer import build_optimizer
-from mgmt.visualize.subject import plot_subject
+from mgmt.visualize.subject import plot_subject_with_label
 from mgmt.visualize.visualize import plot_classification_grid
 
 
@@ -197,14 +197,13 @@ class Classifier(LightningModule):
         batch_subjects = get_subjects_from_batch(batch)
         for subject, pred, target in zip(batch_subjects, binary_preds, targets):
             # TODO: make sure this works for concat mode
-            image = plot_subject(
+            image = plot_subject_with_label(
                 subject,
                 show=False,
                 return_fig=False,
-                figsize=(6.4, 1.6),
-                single_axis="axial",
+                # figsize=(6.4, 1.6),
                 add_metadata=True,
-                # subject_include=["tumor", self.cfg.DATA.MODALITY],
+                add_tumor_legend=True,
             )
             color = "green" if pred == target else "red"
             image = add_color_border(image, color=color)
