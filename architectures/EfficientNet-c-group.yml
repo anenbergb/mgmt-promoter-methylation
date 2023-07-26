@@ -18,4 +18,4 @@ MODEL:
     head_output_filters: 256
     dropout_rate: 0.5
     drop_connect_rate: 0.5
-    norm: ["group", {"eps": 1e-3, "num_groups":4}]
+    norm: ["group", {"eps": 0.001, "num_groups": 4}]

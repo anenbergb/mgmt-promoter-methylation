@@ -1,18 +1,13 @@
+import io
+
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm, colors
 from monai.transforms.utils import rescale_array
-from monai.visualize import blend_images
 from PIL import Image
 
-# image = blend_images(
-#     # convert from BDHWC to HWC CHW where C=1, and D=48 3D depth channels
-#     image=np.transpose(data[modality][patient_i, s, ...], axes=(2, 0, 1)),
-#     label=np.transpose(data["tum"][patient_i, s, ...], axes=(2, 0, 1)),
-#     alpha=0.25,
-#     cmap="hsv",
-#     rescale_arrays=True,
-# )
+from mgmt.data.constants import TUMOR_LABELS_LONG
 
 
 def plot_classification_grid(preds: np.ndarray, target: np.ndarray, patient_id: np.ndarray) -> np.ndarray:
@@ -75,3 +70,30 @@ def segmentation_label_color(labels=[0, 1, 2, 4], cmap="hsv", rgb_255=True):
     else:
         colors = [tuple(l[:3]) for l in label_rgb]
     return colors
+
+
+def make_tumor_legend(
+    fig, labels=[0, 1, 2, 4], cmap="hsv", rgb_255=False, fontsize=12, loc="upper left", bbox_to_anchor=(0.0, 0.0)
+):
+    tumor_colors = segmentation_label_color(labels, cmap, rgb_255)
+    patches = [mpatches.Patch(color=c, label=TUMOR_LABELS_LONG[i]) for i, c in zip([1, 2, 4], tumor_colors[1:])]
+    legend = fig.legend(
+        handles=patches,
+        loc=loc,
+        fontsize=fontsize,
+        title="Tumor Segmentation Labels",
+        title_fontsize=fontsize,
+        bbox_to_anchor=bbox_to_anchor,
+    )
+    return legend
+
+
+def figure_to_array(fig, rgb_255=True):
+    with io.BytesIO() as buff:
+        fig.savefig(buff, format="png", bbox_inches="tight")
+        buff.seek(0)
+        im = plt.imread(buff, format="RGB")
+    im = im[..., :3]  # from RGBA -> RGB
+    if rgb_255:
+        im = (255.0 * im).astype(np.uint8)
+    return im
