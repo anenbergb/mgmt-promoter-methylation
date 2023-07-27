@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 from torchio.transforms.preprocessing.spatial.to_canonical import ToCanonical
 from torchio.visualization import color_labels, rotate
 
-from .visualize import add_color_border
+from .visualize import add_color_border, figure_to_array, make_tumor_legend
 
 
 def plot_volume(
@@ -238,24 +238,103 @@ def plot_subject(
         )
         for axis, axis_name in zip(image_axes, axes_names):
             axis.set_title(f"{name} ({axis_name})")
+
+    if add_metadata:
+        legend = make_subject_metadata_legend(fig, subject, loc="upper left", bbox_to_anchor=(0.0, 0.0))
+        fig.add_artist(legend)
+
     fig.tight_layout(pad=0)
     fig.canvas.draw()
-    data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep="")
-    data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+
     close_fig = True
     if show:
         plt.show()
         close_fig = False
     if return_fig:
         return fig
+    data = figure_to_array(fig)
+    if close_fig:
+        plt.close(fig)
+    return data
+
+
+def plot_subject_with_label(
+    subject: tio.Subject,
+    show=False,
+    figsize=None,
+    clear_axes=True,
+    return_fig=False,
+    single_axis=None,  # one of (sagittal, coronal, axial)
+    add_metadata=False,
+    subject_include=None,
+    label_key="tumor",
+    cmap="hsv",
+    add_tumor_legend=False,
+    **kwargs,
+):
+    assert label_key in subject
+
+    num_images = len(subject.get_images(intensity_only=True))
+    if subject_include is not None:
+        num_images = len(subject_include)
+
+    many_images = num_images > 2
+    subplots_kwargs = {"figsize": figsize}
+    try:
+        if clear_axes:
+            subject.check_consistent_spatial_shape()
+            subplots_kwargs["sharex"] = "row" if many_images else "col"
+            subplots_kwargs["sharey"] = "row" if many_images else "col"
+    except RuntimeError:  # different shapes in subject
+        pass
+
+    axes_names = "sagittal", "coronal", "axial"
+    if single_axis is not None:
+        assert single_axis in ("sagittal", "coronal", "axial")
+        axes_names = (single_axis,)
+    num_rows = len(axes_names)
+
+    args = (num_rows, num_images) if many_images else (num_images, num_rows)
+    fig, axes = plt.subplots(*args, **subplots_kwargs, squeeze=False)
+    # The array of axes must be 2D so that it can be indexed correctly within
+    # the plot_volume() function
+    axes = axes.T if many_images else axes.reshape(-1, num_rows)
+    iterable = enumerate(subject.get_images_dict(include=subject_include, intensity_only=True).items())
+    label_image = subject[label_key]
+    for image_index, (name, image) in iterable:
+        image_axes = axes[image_index]
+        last_row = image_index == len(axes) - 1
+        plot_volume_with_label(
+            image,
+            label_image,
+            axes=image_axes,
+            show=False,
+            cmap=cmap,
+            xlabels=last_row,
+            single_axis=single_axis,
+            **kwargs,
+        )
+        for axis, axis_name in zip(image_axes, axes_names):
+            axis.set_title(f"{name} ({axis_name})")
+
     if add_metadata:
-        meta_im = render_subject_metadata(subject)
-        max_width = max(data.shape[1], meta_im.shape[1])
-        padded = [
-            np.pad(x, ((0, 0), (0, max_width - x.shape[1]), (0, 0)), mode="constant", constant_values=255)
-            for x in (data, meta_im)
-        ]
-        data = np.concatenate(padded, axis=0)
+        legend = make_subject_metadata_legend(fig, subject, loc="upper left", bbox_to_anchor=(0.0, 0.0))
+        fig.add_artist(legend)
+
+    if add_tumor_legend:
+        loc, bbox_to_anchor = ("upper right", (1.0, 0.0)) if add_metadata else ("upper left", (0.0, 0.0))
+        legend = make_tumor_legend(fig, loc=loc, bbox_to_anchor=bbox_to_anchor)
+        fig.add_artist(legend)
+
+    fig.tight_layout(pad=0)
+    fig.canvas.draw()
+    close_fig = True
+    if show:
+        plt.show()
+        close_fig = False
+    if return_fig:
+        return fig
+    data = figure_to_array(fig)
     if close_fig:
         plt.close(fig)
     return data
@@ -288,3 +367,18 @@ def render_subject_metadata(
         draw.text((0, i * height), row, font=image_font, fill=(0, 0, 0))
     arr = np.asarray(info_image)
     return arr
+
+
+def make_subject_metadata_legend(fig, subject: tio.Subject, fontsize=12, loc="upper left", bbox_to_anchor=(0.0, 0.0)):
+    import matplotlib.patches as mpatches
+
+    from mgmt.data.subject_utils import get_subject_nonimages
+
+    patches = []
+    for name, value in get_subject_nonimages(subject).items():
+        label = f"{name}: {value}"
+        patch = mpatches.Patch(color="black", label=label)
+        patches.append(patch)
+
+    legend = fig.legend(handles=patches, loc=loc, fontsize=fontsize, bbox_to_anchor=bbox_to_anchor)
+    return legend

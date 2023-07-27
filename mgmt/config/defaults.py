@@ -121,13 +121,13 @@ _C.AUGMENT.RANDOM_NOISE.std = [0, 0.1]  # greater than 0.1 looks pretty grainy
 
 _C.AUGMENT.RANDOM_BIAS_FIELD_ENABLED = True
 _C.AUGMENT.RANDOM_BIAS_FIELD = CN()
-_C.AUGMENT.RANDOM_BIAS_FIELD.p = 0.1
+_C.AUGMENT.RANDOM_BIAS_FIELD.p = 0.5
 _C.AUGMENT.RANDOM_BIAS_FIELD.coefficients = [-0.1, 0.1]
 _C.AUGMENT.RANDOM_BIAS_FIELD.order = 3
 
 _C.AUGMENT.RANDOM_MOTION_ENABLED = True
 _C.AUGMENT.RANDOM_MOTION = CN()
-_C.AUGMENT.RANDOM_MOTION.p = 0.1
+_C.AUGMENT.RANDOM_MOTION.p = 0.5
 _C.AUGMENT.RANDOM_MOTION.degrees = [1.0, 1.0]
 _C.AUGMENT.RANDOM_MOTION.translation = [-1.0, 1.0]
 _C.AUGMENT.RANDOM_MOTION.num_transforms = 2
@@ -137,7 +137,7 @@ _C.SOLVER = CN()
 # Adam, AdamW
 _C.SOLVER.OPTIMIZER_NAME = "AdamW"
 _C.SOLVER.BASE_LR = 0.001
-_C.SOLVER.WEIGHT_DECAY = 0.0005  # optimizer weight decay 5e-4
+_C.SOLVER.WEIGHT_DECAY = 0.001  # optimizer weight decay 5e-4
 
 _C.SOLVER.ADAM = CN()
 _C.SOLVER.ADAM.betas = [0.9, 0.999]
@@ -250,6 +250,9 @@ _C.MODEL.EfficientNet.norm = ["batch", {"eps": 1e-3, "momentum": 0.01}]
 # ["layer", {"eps": 1e-3, "normalized_shape": (10, 10, 10)}]
 _C.MODEL.EfficientNet.drop_connect_rate = 0.2
 _C.MODEL.EfficientNet.depth_divisor = 8
+_C.MODEL.EfficientNet.stem_kernel_size = 3
+_C.MODEL.EfficientNet.stem_stride = 2
+_C.MODEL.EfficientNet.head_output_filters = 256
 
 _C.METRICS = CN()
 _C.METRICS.THRESHOLD = 0.5
