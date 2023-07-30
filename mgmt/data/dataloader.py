@@ -15,6 +15,7 @@ from mgmt.data.nifti import load_subjects as nifti_load_subjects
 from mgmt.data.numpy import load_subjects as numpy_load_subjects
 from mgmt.data.subject_transforms import CropLargestTumor
 from mgmt.transforms.rescale_intensity import RescaleIntensity
+from mgmt.transforms.skull_crop import SkullCropTransform
 
 
 def load_patient_exclusion(filename: str) -> np.ndarray:
@@ -178,11 +179,43 @@ class DataModule(LightningDataModule):
         subjects = [s for s in self.subjects if s.get("train_test_split", "train") == "train"]
         train_subjects, val_subjects = subjects_train_val_split(subjects, self.cfg.DATA.TRAIN_VAL_RATIO, generator)
 
-        train_transforms = self.get_transforms(train=True)
         val_transforms = self.get_transforms(train=False)
-
-        self.train_set = tio.SubjectsDataset(train_subjects, transform=train_transforms)
         self.val_set = tio.SubjectsDataset(val_subjects, transform=val_transforms)
+
+        if self.cfg.PATCH_BASED_TRAINER.ENABLED:
+            train_transforms = self.get_transforms_patches()
+            self.train_set = tio.SubjectsDataset(train_subjects, transform=train_transforms)
+
+            sampler = tio.data.LabelSampler(**self.cfg.PATCH_BASED_TRAINER.LABEL_SAMPLER)
+            self.train_patches_queue = tio.Queue(
+                subjects_dataset=self.train_set,
+                sampler=sampler,
+                subject_sampler=None,
+                num_workers=self.cfg.DATA.NUM_WORKERS,
+                **self.cfg.PATCH_BASED_TRAINER.QUEUE,
+            )
+        else:
+            train_transforms = self.get_transforms(train=True)
+            self.train_set = tio.SubjectsDataset(train_subjects, transform=train_transforms)
+
+    def get_transforms_patches(self):
+        transforms = [
+            SkullCropTransform(**self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM),
+        ]
+        if self.cfg.PREPROCESS.TO_CANONICAL_ENABLED:
+            transforms.append(tio.ToCanonical())
+
+        if self.cfg.AUGMENT.RANDOM_AFFINE_ENABLED:
+            transforms.append(tio.RandomAffine(**self.cfg.AUGMENT.RANDOM_AFFINE))
+        if self.cfg.AUGMENT.RANDOM_GAMMA_ENABLED:
+            transforms.append(tio.RandomGamma(**self.cfg.AUGMENT.RANDOM_GAMMA))
+        if self.cfg.AUGMENT.RANDOM_BIAS_FIELD:
+            transforms.append(tio.RandomBiasField(**self.cfg.AUGMENT.RANDOM_BIAS_FIELD))
+        if self.cfg.AUGMENT.RANDOM_MOTION_ENABLED:
+            transforms.append(tio.RandomMotion(**self.cfg.AUGMENT.RANDOM_MOTION))
+
+        transforms.extend(self.get_rescale_intensity_transforms(train=True))
+        return tio.Compose(transforms)
 
     def get_transforms(self, train=True):
         transforms = []
@@ -191,26 +224,6 @@ class DataModule(LightningDataModule):
 
         if self.cfg.PREPROCESS.EARLY_CROP_LARGEST_TUMOR_ENABLED:
             transforms.append(CropLargestTumor(**self.cfg.PREPROCESS.EARLY_CROP_LARGEST_TUMOR))
-
-        def rescale_intensity():
-            if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
-                kwargs = copy.copy(self.cfg.PREPROCESS.RESCALE_INTENSITY)
-                skull_mask = kwargs.pop("SKULL_MASK")
-                kwargs.pop("BEFORE_CROP")
-                masking_method = None
-                if skull_mask:
-                    masking_method = lambda x: x > 0.0
-                transforms.append(RescaleIntensity(masking_method=masking_method, **kwargs))
-            if train and self.cfg.AUGMENT.RANDOM_NOISE_ENABLED:
-                transforms.append(tio.RandomNoise(**self.cfg.AUGMENT.RANDOM_NOISE))
-                # rescale back to the target intensity scale range
-                # do not need to apply percentile filtering or mask
-                if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
-                    transforms.append(
-                        RescaleIntensity(
-                            out_min_max=self.cfg.PREPROCESS.RESCALE_INTENSITY.out_min_max,
-                        )
-                    )
 
         if train and self.cfg.AUGMENT.RANDOM_AFFINE_ENABLED:
             transforms.append(tio.RandomAffine(**self.cfg.AUGMENT.RANDOM_AFFINE))
@@ -222,29 +235,56 @@ class DataModule(LightningDataModule):
             transforms.append(tio.RandomMotion(**self.cfg.AUGMENT.RANDOM_MOTION))
 
         if self.cfg.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP:
-            rescale_intensity()
+            transforms.extend(self.get_rescale_intensity_transforms(train=train))
         if self.cfg.PREPROCESS.CROP_LARGEST_TUMOR_ENABLED:
             transforms.append(CropLargestTumor(**self.cfg.PREPROCESS.CROP_LARGEST_TUMOR))
         if not self.cfg.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP:
-            rescale_intensity()
+            transforms.extend(self.get_rescale_intensity_transforms(train=train))
 
         if self.cfg.PREPROCESS.RESIZE_ENABLED:
             transforms.append(tio.Resize(**self.cfg.PREPROCESS.RESIZE))
         transforms.append(tio.EnsureShapeMultiple(**self.cfg.PREPROCESS.ENSURE_SHAPE_MULTIPLE))
         return tio.Compose(transforms)
 
+    def get_rescale_intensity_transforms(self, train=True):
+        transforms = []
+        if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
+            kwargs = copy.copy(self.cfg.PREPROCESS.RESCALE_INTENSITY)
+            skull_mask = kwargs.pop("SKULL_MASK")
+            kwargs.pop("BEFORE_CROP")
+            masking_method = None
+            if skull_mask:
+                masking_method = lambda x: x > 0.0
+            transforms.append(RescaleIntensity(masking_method=masking_method, **kwargs))
+        if train and self.cfg.AUGMENT.RANDOM_NOISE_ENABLED:
+            transforms.append(tio.RandomNoise(**self.cfg.AUGMENT.RANDOM_NOISE))
+            # rescale back to the target intensity scale range
+            # do not need to apply percentile filtering or mask
+            if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
+                transforms.append(
+                    RescaleIntensity(
+                        out_min_max=self.cfg.PREPROCESS.RESCALE_INTENSITY.out_min_max,
+                    )
+                )
+        return transforms
+
     def train_dataloader(self):
         """
         Trainer fit() method calls this.
         https://lightning.ai/docs/pytorch/stable/data/datamodule.html#train-dataloader
         """
+        if self.cfg.PATCH_BASED_TRAINER.ENABLED:
+            return DataLoader(
+                self.train_patches_queue,
+                batch_size=self.cfg.DATA.BATCH_SIZE,
+                num_workers=0,  # this must be 0
+            )
 
         return DataLoader(
             self.train_set,
             batch_size=self.cfg.DATA.BATCH_SIZE,
             num_workers=self.cfg.DATA.NUM_WORKERS,
             pin_memory=True,
-            # collate_fn=default_collate_wrapper,
         )
 
     def val_dataloader(self):
@@ -256,5 +296,6 @@ class DataModule(LightningDataModule):
             batch_size=self.cfg.DATA.BATCH_SIZE,
             num_workers=self.cfg.DATA.NUM_WORKERS,
             pin_memory=True,
+            shuffle=False,
             # collate_fn=default_collate_wrapper,
         )

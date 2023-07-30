@@ -75,8 +75,29 @@ _C.DATA.NUM_WORKERS = 4
 _C.DATA.MODALITY = "t1c"  # "concat"
 _C.DATA.MODALITY_CONCAT = ["fla", "t1w", "t1c", "t2w"]
 
+# https://torchio.readthedocs.io/patches/patch_training.html
+_C.PATCH_BASED_TRAINER = CN()
+_C.PATCH_BASED_TRAINER.ENABLED = False
+_C.PATCH_BASED_TRAINER.LABEL_SAMPLER = CN()
+_C.PATCH_BASED_TRAINER.LABEL_SAMPLER.patch_size = [64, 64, 64]
+_C.PATCH_BASED_TRAINER.LABEL_SAMPLER.label_name = "tumor"
+_C.PATCH_BASED_TRAINER.LABEL_SAMPLER.label_probabilities = None
+_C.PATCH_BASED_TRAINER.QUEUE = CN()
+# Maximum number of patches that can be stored in the queue.
+_C.PATCH_BASED_TRAINER.QUEUE.max_length = 160
+# Default number of patches to extract from each volume.
+_C.PATCH_BASED_TRAINER.QUEUE.samples_per_volume = 25
+_C.PATCH_BASED_TRAINER.QUEUE.shuffle_subjects = True
+_C.PATCH_BASED_TRAINER.QUEUE.shuffle_patches = True
+_C.PATCH_BASED_TRAINER.QUEUE.start_background = True
+_C.PATCH_BASED_TRAINER.QUEUE.verbose = False
+
 _C.PREPROCESS = CN()
 _C.PREPROCESS.TO_CANONICAL_ENABLED = True
+
+_C.PREPROCESS.SKULL_CROP_TRANSFORM = CN()
+_C.PREPROCESS.SKULL_CROP_TRANSFORM.mask_image_name = "t1c"
+_C.PREPROCESS.SKULL_CROP_TRANSFORM.padding = [0, 0, 0]
 
 _C.PREPROCESS.RESCALE_INTENSITY_ENABLED = True
 _C.PREPROCESS.RESCALE_INTENSITY = CN()
