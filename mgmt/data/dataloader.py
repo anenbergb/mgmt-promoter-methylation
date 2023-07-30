@@ -189,6 +189,9 @@ class DataModule(LightningDataModule):
         if self.cfg.PREPROCESS.TO_CANONICAL_ENABLED:
             transforms.append(tio.ToCanonical())
 
+        if self.cfg.PREPROCESS.EARLY_CROP_LARGEST_TUMOR_ENABLED:
+            transforms.append(CropLargestTumor(**self.cfg.PREPROCESS.EARLY_CROP_LARGEST_TUMOR))
+
         def rescale_intensity():
             if self.cfg.PREPROCESS.RESCALE_INTENSITY_ENABLED:
                 kwargs = copy.copy(self.cfg.PREPROCESS.RESCALE_INTENSITY)

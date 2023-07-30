@@ -1,0 +1,25 @@
+# string = (
+#     f"r{self.num_repeat}_k{self.kernel_size}_s{self.stride}{self.stride}"
+#     f"_e{self.expand_ratio}_i{self.input_filters}_o{self.output_filters}"
+#     f"_se{self.se_ratio}"
+# )
+# if not self.id_skip:
+#     string += "_noskip"
+MODEL:
+  NAME: EfficientNet
+  EfficientNet:
+    # (channels, spatial_size)
+    # (1, 96) stem-> (8, 48)
+    # b0-> (16, 48) b1-> (32, 24) b2-> (64, 12) b3-> (128, 6) b4-> (256, 3)
+  
+    # (1, 64) stem-> (8, 32)
+    # b0-> (16, 32) b1-> (32, 16) b2-> (64, 8) b3-> (128, 4) b4-> (256, 2)
+    blocks_args_str:
+      - "r1_k3_s11_e1_i8_o16_se0.25"
+      - "r2_k3_s22_e2_i16_o32_se0.25"
+      - "r2_k5_s22_e2_i32_o64_se0.25"
+      - "r2_k3_s22_e2_i64_o128_se0.25"
+      - "r2_k3_s22_e1_i128_o256_se0.25"
+    head_output_filters: 256
+    dropout_rate: 0.3
+    drop_connect_rate: 0.3
