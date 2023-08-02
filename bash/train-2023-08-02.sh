@@ -1,0 +1,18 @@
+#!/bin/bash
+
+EXPR_DIR=/home/bryan/expr/brain_tumor/2023-08-02/try1
+
+python mgmt/tasks/train.py \
+-c architectures/EfficientNet-d.yml \
+OUTPUT_DIR $EXPR_DIR/efficient-d-64-run2 \
+MODEL.EfficientNet.image_size 64 \
+TRAINER.max_epochs 100 \
+DATA.MODALITY t1c \
+PATCH_BASED_TRAINER.ENABLED True \
+PATCH_BASED_TRAINER.LABEL_SAMPLER.patch_size "[64, 64, 64]" \
+AUGMENT.RANDOM_BIAS_FIELD_ENABLED False \
+PREPROCESS.EARLY_CROP_LARGEST_TUMOR_ENABLED True \
+PREPROCESS.EARLY_CROP_LARGEST_TUMOR.crop_dim "[72, 72, 72]" \
+PREPROCESS.CROP_LARGEST_TUMOR_ENABLED False \
+PREPROCESS.RESIZE_ENABLED False \
+DATA.NUM_WORKERS 12

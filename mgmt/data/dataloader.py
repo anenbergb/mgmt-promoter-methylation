@@ -178,6 +178,11 @@ class DataModule(LightningDataModule):
         # TODO: allow processing of test subjects
         subjects = [s for s in self.subjects if s.get("train_test_split", "train") == "train"]
         train_subjects, val_subjects = subjects_train_val_split(subjects, self.cfg.DATA.TRAIN_VAL_RATIO, generator)
+        
+        # double check whether this is duplicated for each GPU
+        if not self.cfg.DATA.LAZY_LOAD_TRAIN:
+            for s in train_subjects:
+                s.load()
 
         val_transforms = self.get_transforms(train=False)
         self.val_set = tio.SubjectsDataset(val_subjects, transform=val_transforms)
@@ -202,6 +207,11 @@ class DataModule(LightningDataModule):
         transforms = [
             SkullCropTransform(**self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM),
         ]
+        # pad half the patch size in order to avoid sampling out of bounds
+        patch_size = self.cfg.PATCH_BASED_TRAINER.LABEL_SAMPLER.patch_size
+        padding = np.ceil((np.array(patch_size) / 2)).astype(np.int32).tolist()
+        transforms.append(tio.Pad(padding=padding))
+
         if self.cfg.PREPROCESS.TO_CANONICAL_ENABLED:
             transforms.append(tio.ToCanonical())
 
@@ -214,7 +224,8 @@ class DataModule(LightningDataModule):
         if self.cfg.AUGMENT.RANDOM_MOTION_ENABLED:
             transforms.append(tio.RandomMotion(**self.cfg.AUGMENT.RANDOM_MOTION))
 
-        transforms.extend(self.get_rescale_intensity_transforms(train=True))
+        int_trans = self.get_rescale_intensity_transforms(train=True)
+        transforms.extend(int_trans)
         return tio.Compose(transforms)
 
     def get_transforms(self, train=True):
@@ -235,11 +246,13 @@ class DataModule(LightningDataModule):
             transforms.append(tio.RandomMotion(**self.cfg.AUGMENT.RANDOM_MOTION))
 
         if self.cfg.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP:
-            transforms.extend(self.get_rescale_intensity_transforms(train=train))
+            int_trans = self.get_rescale_intensity_transforms(train=train)
+            transforms.extend(int_trans)
         if self.cfg.PREPROCESS.CROP_LARGEST_TUMOR_ENABLED:
             transforms.append(CropLargestTumor(**self.cfg.PREPROCESS.CROP_LARGEST_TUMOR))
         if not self.cfg.PREPROCESS.RESCALE_INTENSITY.BEFORE_CROP:
-            transforms.extend(self.get_rescale_intensity_transforms(train=train))
+            int_trans = self.get_rescale_intensity_transforms(train=train)
+            transforms.extend(int_trans)
 
         if self.cfg.PREPROCESS.RESIZE_ENABLED:
             transforms.append(tio.Resize(**self.cfg.PREPROCESS.RESIZE))
@@ -252,10 +265,7 @@ class DataModule(LightningDataModule):
             kwargs = copy.copy(self.cfg.PREPROCESS.RESCALE_INTENSITY)
             skull_mask = kwargs.pop("SKULL_MASK")
             kwargs.pop("BEFORE_CROP")
-            masking_method = None
-            if skull_mask:
-                masking_method = lambda x: x > 0.0
-            transforms.append(RescaleIntensity(masking_method=masking_method, **kwargs))
+            transforms.append(RescaleIntensity(skull_mask=skull_mask, **kwargs))
         if train and self.cfg.AUGMENT.RANDOM_NOISE_ENABLED:
             transforms.append(tio.RandomNoise(**self.cfg.AUGMENT.RANDOM_NOISE))
             # rescale back to the target intensity scale range

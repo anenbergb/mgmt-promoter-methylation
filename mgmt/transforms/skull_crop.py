@@ -29,7 +29,12 @@ class SkullCropTransform(tio.SpatialTransform):
             self.include = ["tumor", *kwargs["include"]]
             kwargs.pop("include")
         self.kwargs = kwargs
-
+        # exclude masking_method because lambda can't be pickled
+        self.args_names = [
+            'mask_image_name',
+            'padding',
+        ]
+    
     def apply_transform(self, subject: tio.Subject) -> tio.Subject:
         assert self.mask_image_name in subject
 

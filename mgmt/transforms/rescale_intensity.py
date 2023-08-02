@@ -10,9 +10,13 @@ class RescaleIntensity(_RescaleIntensity):
     in the subject independently.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, skull_mask = False, **kwargs):
+        if skull_mask:
+            kwargs["masking_method"] = lambda x: x > 0.0
         super().__init__(**kwargs)
         self.original_in_min_max = self.in_min_max
+        # reset self.args_names because masking_method lambda can't be pickled
+        self.args_names = []
 
     def apply_normalization(
         self,
