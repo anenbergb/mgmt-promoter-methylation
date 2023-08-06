@@ -10,7 +10,7 @@ class RescaleIntensity(_RescaleIntensity):
     in the subject independently.
     """
 
-    def __init__(self, skull_mask = False, **kwargs):
+    def __init__(self, skull_mask=False, **kwargs):
         if skull_mask:
             kwargs["masking_method"] = lambda x: x > 0.0
         super().__init__(**kwargs)

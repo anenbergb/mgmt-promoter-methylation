@@ -15,7 +15,7 @@ def make_subject(
         name = MODALITY2NAME.get(mo, "modality")
         file_path = os.path.join(folder_path, f"{mo}.nii.gz")
         mri_images[mo] = tio.ScalarImage(path=file_path, name=name)
-    
+
     tumor = tio.LabelMap(path=os.path.join(folder_path, "seg.nii.gz"), name="Tumor Segmentation")
     # patient_id_str is formatted P-00000 or MGMT-025579
     patient_id_str = os.path.basename(folder_path)

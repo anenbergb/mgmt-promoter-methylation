@@ -25,7 +25,7 @@ _C.TRAINER.limit_val_batches = 1.0
 # Useful when debugging to overfit on purpose
 _C.TRAINER.overfit_batches = 0.0
 _C.TRAINER.check_val_every_n_epoch = 1
-_C.TRAINER.log_every_n_steps = 10
+_C.TRAINER.log_every_n_steps = 50
 _C.TRAINER.accumulate_grad_batches = 1
 # TODO: consider adding gradient clipping
 #   gradient_clip_val: null
@@ -61,7 +61,7 @@ _C.DATA.NIFTI.FOLDER_PATH = "/home/bryan/data/brain_tumor/caidm_3d_240"
 _C.DATA.NIFTI.TRAIN_LABELS = "/home/bryan/data/brain_tumor/classification/train_labels.csv"
 # folders with test data are titled "MGMT"
 _C.DATA.NIFTI.TEST_FOLDER_PREFIX = "MGMT"
-_C.DATA.LAZY_LOAD_TRAIN = False
+_C.DATA.LAZY_LOAD_TRAIN = True
 
 _C.DATA.NUMPY = CN()
 _C.DATA.NUMPY.FILEPATH_NPZ = "/home/bryan/data/brain_tumor/caidm_3d_96/data.npz"
@@ -71,7 +71,7 @@ _C.DATA.NUMPY.PATIENT_EXCLUSION_CSV = "/home/bryan/src/mgmt-promoter-methylation
 _C.DATA.TRAIN_VAL_RATIO = 0.85
 _C.DATA.TRAIN_VAL_MANUAL_SEED = 10
 _C.DATA.BATCH_SIZE = 16
-_C.DATA.NUM_WORKERS = 8
+_C.DATA.NUM_WORKERS = 10
 # 'fla', 't1w', 't1c', 't2w', 'concat'
 _C.DATA.MODALITY = "t1c"  # "concat"
 _C.DATA.MODALITY_CONCAT = ["fla", "t1w", "t1c", "t2w"]
@@ -85,13 +85,14 @@ _C.PATCH_BASED_TRAINER.LABEL_SAMPLER.label_name = "tumor"
 _C.PATCH_BASED_TRAINER.LABEL_SAMPLER.label_probabilities = None
 _C.PATCH_BASED_TRAINER.QUEUE = CN()
 # Maximum number of patches that can be stored in the queue.
-_C.PATCH_BASED_TRAINER.QUEUE.max_length = 800
+# 491 * 25 / 3
+_C.PATCH_BASED_TRAINER.QUEUE.max_length = 4100
 # Default number of patches to extract from each volume.
 _C.PATCH_BASED_TRAINER.QUEUE.samples_per_volume = 25
 _C.PATCH_BASED_TRAINER.QUEUE.shuffle_subjects = True
 _C.PATCH_BASED_TRAINER.QUEUE.shuffle_patches = True
 _C.PATCH_BASED_TRAINER.QUEUE.start_background = True
-_C.PATCH_BASED_TRAINER.QUEUE.verbose = True
+_C.PATCH_BASED_TRAINER.QUEUE.verbose = False
 
 _C.PREPROCESS = CN()
 _C.PREPROCESS.TO_CANONICAL_ENABLED = True
@@ -211,6 +212,13 @@ _C.SOLVER.ReduceLROnPlateau.threshold_mode = "rel"
 _C.SOLVER.ReduceLROnPlateau.cooldown = 0
 _C.SOLVER.ReduceLROnPlateau.min_lr = 0
 _C.SOLVER.ReduceLROnPlateau.eps = 1e-08
+
+_C.SOLVER.StepLR = CN()
+_C.SOLVER.StepLR.step_size = 10
+_C.SOLVER.StepLR.gamma = 0.1
+_C.SOLVER.StepLR.last_epoch = -1
+_C.SOLVER.StepLR.verbose = False
+
 
 _C.SOLVER.MultiStepLR = CN()
 # List of epoch indices. Must be increasing.

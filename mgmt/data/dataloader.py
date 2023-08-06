@@ -178,7 +178,7 @@ class DataModule(LightningDataModule):
         # TODO: allow processing of test subjects
         subjects = [s for s in self.subjects if s.get("train_test_split", "train") == "train"]
         train_subjects, val_subjects = subjects_train_val_split(subjects, self.cfg.DATA.TRAIN_VAL_RATIO, generator)
-        
+
         # double check whether this is duplicated for each GPU
         if not self.cfg.DATA.LAZY_LOAD_TRAIN:
             for s in train_subjects:
