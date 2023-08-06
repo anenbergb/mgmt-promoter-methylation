@@ -69,6 +69,8 @@ def get_steps_per_epoch(cfg: CfgNode, datamodule: DataModule) -> int:
     datamodule.prepare_data()
     num_subjects = len(datamodule.subjects)
     num_train = np.ceil(cfg.DATA.TRAIN_VAL_RATIO * num_subjects)
+    if cfg.PATCH_BASED_TRAINER.ENABLED:
+        num_train *= cfg.PATCH_BASED_TRAINER.QUEUE.samples_per_volume
     steps_per_epoch = int(np.ceil(num_train / cfg.DATA.BATCH_SIZE))
     return steps_per_epoch
 

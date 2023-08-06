@@ -51,6 +51,8 @@ def build_lr_scheduler(
         )
     elif sfg.SCHEDULER_NAME == "ReduceLROnPlateau":
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **sfg.ReduceLROnPlateau)
+    elif sfg.SCHEDULER_NAME == "StepLR":
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, **sfg.StepLR)
     elif sfg.SCHEDULER_NAME == "MultiStepLR":
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, last_epoch=last_epoch, **sfg.MultiStepLR)
     else:

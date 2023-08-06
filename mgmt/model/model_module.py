@@ -121,13 +121,13 @@ class Classifier(LightningModule):
         loss = self.criterion(logits, target.to(torch.float))
         self.train_acc(binary_preds, target)
         self.train_auc(preds, target)
-        self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
+        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
         self.log_dict(
             {
                 "train/accuracy": self.train_acc,
                 "train/auc": self.train_auc,
             },
-            on_step=False,
+            on_step=True,
             on_epoch=True,
             prog_bar=False,
             batch_size=self.cfg.DATA.BATCH_SIZE,
