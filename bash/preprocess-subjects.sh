@@ -1,0 +1,17 @@
+#!/bin/bash
+
+
+OUTPUT_DIR=/home/bryan/expr/brain_tumor/2023-08-06/preprocess-subjects-skull-crop
+python mgmt/tasks/preprocess_subjects.py \
+--extension .skull-crop-64.nii \
+OUTPUT_DIR $OUTPUT_DIR \
+SEED_EVERYTHING 1 \
+PATCH_BASED_TRAINER.LABEL_SAMPLER.patch_size "[64, 64, 64]" \
+PREPROCESS.TO_CANONICAL_ENABLED True \
+AUGMENT.RANDOM_AFFINE_ENABLED False \
+AUGMENT.RANDOM_GAMMA_ENABLED False \
+AUGMENT.RANDOM_BIAS_FIELD_ENABLED False \
+AUGMENT.RANDOM_MOTION_ENABLED False \
+AUGMENT.RANDOM_NOISE_ENABLED False \
+PREPROCESS.RESCALE_INTENSITY_ENABLED True
+

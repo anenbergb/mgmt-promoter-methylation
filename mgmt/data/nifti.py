@@ -1,22 +1,35 @@
 import csv
 import os
+from typing import Optional
 
 import torchio as tio
 
 from mgmt.data.constants import MODALITIES, MODALITY2NAME
 
 
+def get_file_name(basename: str, extensions: list[str] = [".nii", ".nii.gz"]) -> Optional[str]:
+    for ext in extensions:
+        filepath = f"{basename}{ext}"
+        if os.path.exists(filepath):
+            return filepath
+    return None
+
+
 def make_subject(
-    folder_path: str, category_id: int = 0, modality: list[str] = ["t2w"], train_test_split: str = "train"
+    folder_path: str,
+    category_id: int = 0,
+    modality: list[str] = ["t2w"],
+    train_test_split: str = "train",
+    extension: list[str] = [".nii", ".nii.gz"],
 ) -> tio.Subject:
     category = "methylated" if category_id == 1 else "unmethylated"
     mri_images = {}
     for mo in modality:
         name = MODALITY2NAME.get(mo, "modality")
-        file_path = os.path.join(folder_path, f"{mo}.nii.gz")
+        file_path = get_file_name(os.path.join(folder_path, mo), extension)
         mri_images[mo] = tio.ScalarImage(path=file_path, name=name)
 
-    tumor = tio.LabelMap(path=os.path.join(folder_path, "seg.nii.gz"), name="Tumor Segmentation")
+    tumor = tio.LabelMap(path=get_file_name(os.path.join(folder_path, "seg"), extension), name="Tumor Segmentation")
     # patient_id_str is formatted P-00000 or MGMT-025579
     patient_id_str = os.path.basename(folder_path)
     _, patient_id = patient_id_str.split("-")
