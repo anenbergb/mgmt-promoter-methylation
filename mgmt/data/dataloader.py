@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from mgmt.data.nifti import load_subjects as nifti_load_subjects
 from mgmt.data.numpy import load_subjects as numpy_load_subjects
 from mgmt.data.subject_transforms import CropLargestTumor
+from mgmt.transforms.patch_sampler_probability_map import AddPatchSamplerProbabilityMap
 from mgmt.transforms.rescale_intensity import RescaleIntensity
 from mgmt.transforms.skull_crop import SkullCropTransform
 
@@ -204,16 +205,25 @@ class DataModule(LightningDataModule):
             self.train_set = tio.SubjectsDataset(train_subjects, transform=train_transforms)
 
     def get_transforms_patches(self):
-        transforms = [
-            SkullCropTransform(**self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM),
-        ]
-        # pad half the patch size in order to avoid sampling out of bounds
-        patch_size = self.cfg.PATCH_BASED_TRAINER.LABEL_SAMPLER.patch_size
-        padding = np.ceil((np.array(patch_size) / 2)).astype(np.int32).tolist()
-        transforms.append(tio.Pad(padding=padding))
+        transforms = []
 
         if self.cfg.PREPROCESS.TO_CANONICAL_ENABLED:
             transforms.append(tio.ToCanonical())
+
+        transforms.append(SkullCropTransform(**self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM))
+        transforms.append(
+            AddPatchSamplerProbabilityMap(
+                patch_size=self.cfg.PATCH_BASED_TRAINER.WEIGHTED_SAMPLER.patch_size,
+                device="cuda",
+                segmentation_mask_key="tumor",
+                probability_map_name=self.cfg.PATCH_BASED_TRAINER.WEIGHTED_SAMPLER.probability_map,
+            )
+        )
+
+        # # pad half the patch size in order to avoid sampling out of bounds
+        # patch_size = self.cfg.PATCH_BASED_TRAINER.LABEL_SAMPLER.patch_size
+        # padding = np.ceil((np.array(patch_size) / 2)).astype(np.int32).tolist()
+        # transforms.append(tio.Pad(padding=padding))
 
         if self.cfg.AUGMENT.RANDOM_AFFINE_ENABLED:
             transforms.append(tio.RandomAffine(**self.cfg.AUGMENT.RANDOM_AFFINE))

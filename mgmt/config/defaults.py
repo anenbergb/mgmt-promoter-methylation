@@ -83,6 +83,11 @@ _C.PATCH_BASED_TRAINER.LABEL_SAMPLER = CN()
 _C.PATCH_BASED_TRAINER.LABEL_SAMPLER.patch_size = [64, 64, 64]
 _C.PATCH_BASED_TRAINER.LABEL_SAMPLER.label_name = "tumor"
 _C.PATCH_BASED_TRAINER.LABEL_SAMPLER.label_probabilities = None
+
+_C.PATCH_BASED_TRAINER.WEIGHTED_SAMPLER = CN()
+_C.PATCH_BASED_TRAINER.WEIGHTED_SAMPLER.patch_size = [64, 64, 64]
+_C.PATCH_BASED_TRAINER.WEIGHTED_SAMPLER.probability_map = "patch_sampling_probability_map"
+
 _C.PATCH_BASED_TRAINER.QUEUE = CN()
 # Maximum number of patches that can be stored in the queue.
 # 491 * 25 / 3
