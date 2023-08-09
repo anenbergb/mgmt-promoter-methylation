@@ -55,14 +55,20 @@ def save_dataset_pickle(subjects, transforms, pickle_save_path: str):
         pickle.dump(transformed_subjects, f)
 
 
-def main(cfg: CfgNode, extension: str | None, pickle_save_path: str, mode: str):
+def main(
+    cfg: CfgNode,
+    extension: str | None,
+    pickle_save_path: str,
+    mode: str,
+    modalities: list[str] = ["fla", "t1w", "t1c", "t2w"],
+):
     setup_logger(cfg)
     seed_everything(cfg.SEED_EVERYTHING, workers=True)
     datamodule = DataModule(cfg)
     subjects = load_subjects(
         cfg.DATA.NIFTI.FOLDER_PATH,
         cfg.DATA.NIFTI.TRAIN_LABELS,
-        ["fla", "t1w", "t1c", "t2w"],
+        modalities,
         cfg.DATA.NIFTI.TEST_FOLDER_PREFIX,
     )
 
@@ -108,6 +114,13 @@ Preprocess the subjects and save outputs
         help="Mode for how to save the output. " "pickle saves the full dataset into a single pickle file",
     )
     parser.add_argument(
+        "--modalities",
+        default=["fla", "t1w", "t1c", "t2w"],
+        type=str,
+        nargs="+",
+        help="List of MRI modalities to load",
+    )
+    parser.add_argument(
         "opts",
         help="""
 Modify config options at the end of the command. For Yacs configs, use
@@ -123,4 +136,4 @@ For python-based LazyConfig, use "path.key=value".
 if __name__ == "__main__":
     args = get_args()
     cfg = setup_config(args)
-    sys.exit(main(cfg, args.extension, args.pickle_save_path, args.mode))
+    sys.exit(main(cfg, args.extension, args.pickle_save_path, args.mode, args.modalities))

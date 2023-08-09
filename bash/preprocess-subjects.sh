@@ -15,9 +15,25 @@
 # AUGMENT.RANDOM_NOISE_ENABLED False \
 # PREPROCESS.RESCALE_INTENSITY_ENABLED True
 
-OUTPUT_DIR=/home/bryan/expr/brain_tumor/2023-08-08/preprocess-subjects-crop-64
+# OUTPUT_DIR=/home/bryan/expr/brain_tumor/2023-08-08/preprocess-subjects-crop-64
+# python mgmt/tasks/preprocess_subjects.py \
+# --mode pickle-subjects \
+# --pickle-save-path $OUTPUT_DIR \
+# OUTPUT_DIR $OUTPUT_DIR/logs \
+# SEED_EVERYTHING 1 \
+# PATCH_BASED_TRAINER.WEIGHTED_SAMPLER.patch_size "[64, 64, 64]" \
+# PREPROCESS.TO_CANONICAL_ENABLED True \
+# AUGMENT.RANDOM_AFFINE_ENABLED False \
+# AUGMENT.RANDOM_GAMMA_ENABLED False \
+# AUGMENT.RANDOM_BIAS_FIELD_ENABLED False \
+# AUGMENT.RANDOM_MOTION_ENABLED False \
+# AUGMENT.RANDOM_NOISE_ENABLED False \
+# PREPROCESS.RESCALE_INTENSITY_ENABLED True
+
+OUTPUT_DIR=/home/bryan/expr/brain_tumor/2023-08-08/preprocess-subjects-crop-64-t1c
 python mgmt/tasks/preprocess_subjects.py \
 --mode pickle-subjects \
+--modalities t1c \
 --pickle-save-path $OUTPUT_DIR \
 OUTPUT_DIR $OUTPUT_DIR/logs \
 SEED_EVERYTHING 1 \
