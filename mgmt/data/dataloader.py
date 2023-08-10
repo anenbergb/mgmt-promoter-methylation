@@ -13,7 +13,9 @@ from torch.utils.data import DataLoader
 
 from mgmt.data.nifti import load_subjects as nifti_load_subjects
 from mgmt.data.numpy import load_subjects as numpy_load_subjects
+from mgmt.data.pickle import load_subject_pickles
 from mgmt.data.subject_transforms import CropLargestTumor
+from mgmt.transforms.patch_sampler_probability_map import AddPatchSamplerProbabilityMap
 from mgmt.transforms.rescale_intensity import RescaleIntensity
 from mgmt.transforms.skull_crop import SkullCropTransform
 
@@ -34,7 +36,7 @@ def make_concat_image(subject: tio.Subject, modality: list[str] = ["t2w"]) -> ti
         assert m in subject
         tensors.append(subject[m].tensor)
     tensor = torch.cat(tensors, dim=0)
-    return tio.ScalarImage(tensor=tensor)
+    return tio.ScalarImage(tensor=tensor, affine=subject[modality[0]].affine)
 
 
 def get_max_shape(subjects):
@@ -59,6 +61,9 @@ def subjects_train_val_split(
         return subjects, []
     else:
         assert train_val_ratio > 0 and train_val_ratio < 1
+
+    # sort the subjects first to ensure that all variability comes from the randperm
+    subjects = sorted(subjects, key=lambda x: x.patient_id)
 
     indices = torch.randperm(len(subjects), generator=generator).tolist()
     num_val = math.floor(len(subjects) * (1 - train_val_ratio))
@@ -153,6 +158,9 @@ class DataModule(LightningDataModule):
                 modality,
                 self.cfg.DATA.NIFTI.TEST_FOLDER_PREFIX,
             )
+        elif self.cfg.DATA.SOURCE == "pickle-subjects":
+            self.subjects = load_subject_pickles(**self.cfg.DATA.PICKLE_SUBJECTS)
+
         self.add_combined_image()
 
     def add_combined_image(self):
@@ -184,14 +192,15 @@ class DataModule(LightningDataModule):
             for s in train_subjects:
                 s.load()
 
-        val_transforms = self.get_transforms(train=False)
-        self.val_set = tio.SubjectsDataset(val_subjects, transform=val_transforms)
-
         if self.cfg.PATCH_BASED_TRAINER.ENABLED:
-            train_transforms = self.get_transforms_patches()
+            train_transforms = (
+                self.get_transforms_patches(train=True) if self.cfg.PATCH_BASED_TRAINER.TRANSFORMS_ENABLED else None
+            )
             self.train_set = tio.SubjectsDataset(train_subjects, transform=train_transforms)
 
-            sampler = tio.data.LabelSampler(**self.cfg.PATCH_BASED_TRAINER.LABEL_SAMPLER)
+            # sampler = tio.data.LabelSampler(**self.cfg.PATCH_BASED_TRAINER.LABEL_SAMPLER)
+            sampler = tio.data.WeightedSampler(**self.cfg.PATCH_BASED_TRAINER.WEIGHTED_SAMPLER)
+
             self.train_patches_queue = tio.Queue(
                 subjects_dataset=self.train_set,
                 sampler=sampler,
@@ -199,32 +208,58 @@ class DataModule(LightningDataModule):
                 num_workers=self.cfg.DATA.NUM_WORKERS,
                 **self.cfg.PATCH_BASED_TRAINER.QUEUE,
             )
+            val_transforms = (
+                self.get_transforms_patches(train=False)
+                if self.cfg.PATCH_BASED_TRAINER.TRANSFORMS_ENABLED
+                else tio.Compose([])
+            )
+            if self.cfg.VAL_INFERENCE.MODE == "CropLargestTumor":
+                val_transforms.transforms.append(CropLargestTumor(**self.cfg.VAL_INFERENCE.CROP_LARGEST_TUMOR))
+
         else:
             train_transforms = self.get_transforms(train=True)
             self.train_set = tio.SubjectsDataset(train_subjects, transform=train_transforms)
+            val_transforms = self.get_transforms(train=False)
 
-    def get_transforms_patches(self):
-        transforms = [
-            SkullCropTransform(**self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM),
-        ]
-        # pad half the patch size in order to avoid sampling out of bounds
-        patch_size = self.cfg.PATCH_BASED_TRAINER.LABEL_SAMPLER.patch_size
-        padding = np.ceil((np.array(patch_size) / 2)).astype(np.int32).tolist()
-        transforms.append(tio.Pad(padding=padding))
+        self.val_set = tio.SubjectsDataset(val_subjects, transform=val_transforms)
+
+    def get_transforms_patches(self, train=True):
+        transforms = []
 
         if self.cfg.PREPROCESS.TO_CANONICAL_ENABLED:
             transforms.append(tio.ToCanonical())
 
-        if self.cfg.AUGMENT.RANDOM_AFFINE_ENABLED:
+        if self.cfg.PREPROCESS.RESAMPLE_ENABLED:
+            transforms.append(tio.Resample(**self.cfg.PREPROCESS.RESAMPLE))
+
+        if self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM_ENABLED:
+            transforms.append(SkullCropTransform(**self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM))
+
+        if self.cfg.PREPROCESS.ADD_PATCH_SAMPLER_PROB_MAP_ENABLED:
+            transforms.append(
+                AddPatchSamplerProbabilityMap(
+                    patch_size=self.cfg.PATCH_BASED_TRAINER.WEIGHTED_SAMPLER.patch_size,
+                    device="cuda",
+                    segmentation_mask_key="tumor",
+                    probability_map_name=self.cfg.PATCH_BASED_TRAINER.WEIGHTED_SAMPLER.probability_map,
+                )
+            )
+
+        # # pad half the patch size in order to avoid sampling out of bounds
+        # patch_size = self.cfg.PATCH_BASED_TRAINER.LABEL_SAMPLER.patch_size
+        # padding = np.ceil((np.array(patch_size) / 2)).astype(np.int32).tolist()
+        # transforms.append(tio.Pad(padding=padding))
+
+        if train and self.cfg.AUGMENT.RANDOM_AFFINE_ENABLED:
             transforms.append(tio.RandomAffine(**self.cfg.AUGMENT.RANDOM_AFFINE))
-        if self.cfg.AUGMENT.RANDOM_GAMMA_ENABLED:
+        if train and self.cfg.AUGMENT.RANDOM_GAMMA_ENABLED:
             transforms.append(tio.RandomGamma(**self.cfg.AUGMENT.RANDOM_GAMMA))
-        if self.cfg.AUGMENT.RANDOM_BIAS_FIELD:
+        if train and self.cfg.AUGMENT.RANDOM_BIAS_FIELD:
             transforms.append(tio.RandomBiasField(**self.cfg.AUGMENT.RANDOM_BIAS_FIELD))
-        if self.cfg.AUGMENT.RANDOM_MOTION_ENABLED:
+        if train and self.cfg.AUGMENT.RANDOM_MOTION_ENABLED:
             transforms.append(tio.RandomMotion(**self.cfg.AUGMENT.RANDOM_MOTION))
 
-        int_trans = self.get_rescale_intensity_transforms(train=True)
+        int_trans = self.get_rescale_intensity_transforms(train=train)
         transforms.extend(int_trans)
         return tio.Compose(transforms)
 
