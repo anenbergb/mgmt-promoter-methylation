@@ -62,6 +62,9 @@ def subjects_train_val_split(
     else:
         assert train_val_ratio > 0 and train_val_ratio < 1
 
+    # sort the subjects first to ensure that all variability comes from the randperm
+    subjects = sorted(subjects, key=lambda x: x.patient_id)
+
     indices = torch.randperm(len(subjects), generator=generator).tolist()
     num_val = math.floor(len(subjects) * (1 - train_val_ratio))
     num_methylated = 0
