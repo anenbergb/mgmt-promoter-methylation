@@ -55,7 +55,7 @@ _C.PROFILER.ADVANCED.line_count_restriction = 1.0
 
 _C.DATA = CN()
 
-_C.DATA.SOURCE = "nifti"  # nifti or numpy
+_C.DATA.SOURCE = "nifti"  # nifti, numpy, pickle-subjects
 _C.DATA.NIFTI = CN()
 _C.DATA.NIFTI.FOLDER_PATH = "/home/bryan/data/brain_tumor/caidm_3d_240"
 _C.DATA.NIFTI.TRAIN_LABELS = "/home/bryan/data/brain_tumor/classification/train_labels.csv"
@@ -68,6 +68,10 @@ _C.DATA.NUMPY.FILEPATH_NPZ = "/home/bryan/data/brain_tumor/caidm_3d_96/data.npz"
 # /Users/bryan/gdrive/Radiology-Research/brain_tumor/data/caidm_3d_96/data.npz"
 _C.DATA.NUMPY.PATIENT_EXCLUSION_CSV = "/home/bryan/src/mgmt-promoter-methylation/mgmt/data/patient_exclusion.csv"
 
+_C.DATA.PICKLE_SUBJECTS = CN()
+_C.DATA.PICKLE_SUBJECTS.folder_path = "/home/bryan/expr/brain_tumor/2023-08-08/preprocess-subjects-crop-64-t1c"
+_C.DATA.PICKLE_SUBJECTS.filter_file_prefix = "P-"
+
 _C.DATA.TRAIN_VAL_RATIO = 0.85
 _C.DATA.TRAIN_VAL_MANUAL_SEED = 10
 _C.DATA.BATCH_SIZE = 16
@@ -79,6 +83,9 @@ _C.DATA.MODALITY_CONCAT = ["fla", "t1w", "t1c", "t2w"]
 # https://torchio.readthedocs.io/patches/patch_training.html
 _C.PATCH_BASED_TRAINER = CN()
 _C.PATCH_BASED_TRAINER.ENABLED = False
+# skip transforms in the case where they were already applied saved into the subject pickle
+_C.PATCH_BASED_TRAINER.TRANSFORMS_ENABLED = False
+
 _C.PATCH_BASED_TRAINER.LABEL_SAMPLER = CN()
 _C.PATCH_BASED_TRAINER.LABEL_SAMPLER.patch_size = [64, 64, 64]
 _C.PATCH_BASED_TRAINER.LABEL_SAMPLER.label_name = "tumor"
@@ -102,9 +109,12 @@ _C.PATCH_BASED_TRAINER.QUEUE.verbose = False
 _C.PREPROCESS = CN()
 _C.PREPROCESS.TO_CANONICAL_ENABLED = True
 
+_C.PREPROCESS.SKULL_CROP_TRANSFORM_ENABLED = True
 _C.PREPROCESS.SKULL_CROP_TRANSFORM = CN()
 _C.PREPROCESS.SKULL_CROP_TRANSFORM.mask_image_name = "t1c"
 _C.PREPROCESS.SKULL_CROP_TRANSFORM.padding = [0, 0, 0]
+
+_C.PREPROCESS.ADD_PATCH_SAMPLER_PROB_MAP_ENABLED = True
 
 _C.PREPROCESS.RESCALE_INTENSITY_ENABLED = True
 _C.PREPROCESS.RESCALE_INTENSITY = CN()
@@ -131,6 +141,13 @@ _C.PREPROCESS.RESIZE.image_interpolation = "linear"
 _C.PREPROCESS.ENSURE_SHAPE_MULTIPLE = CN()
 _C.PREPROCESS.ENSURE_SHAPE_MULTIPLE.target_multiple = [8, 8, 8]
 _C.PREPROCESS.ENSURE_SHAPE_MULTIPLE.method = "pad"  # 'crop', 'pad'
+
+_C.PREPROCESS.RESAMPLE_ENABLED = False
+_C.PREPROCESS.RESAMPLE = CN()
+# target is the output spacing. 2.0 means divide size by factor of 2.0
+_C.PREPROCESS.RESAMPLE.target = 2.0
+_C.PREPROCESS.RESAMPLE.image_interpolation = "bspline"
+_C.PREPROCESS.RESAMPLE.label_interpolation = "nearest"
 
 _C.AUGMENT = CN()
 _C.AUGMENT.RANDOM_AFFINE_ENABLED = True
@@ -166,6 +183,11 @@ _C.AUGMENT.RANDOM_MOTION.degrees = [10.0, 10.0]
 _C.AUGMENT.RANDOM_MOTION.translation = [-10.0, 10.0]
 _C.AUGMENT.RANDOM_MOTION.num_transforms = 1
 _C.AUGMENT.RANDOM_MOTION.image_interpolation = "linear"
+
+_C.VAL_INFERNECE = CN()
+_C.VAL_INFERENCE.MODE = "CropLargestTumor"
+_C.VAL_INFERENCE.CROP_LARGEST_TUMOR = CN()
+_C.VAL_INFERENCE.CROP_LARGEST_TUMOR.crop_dim = [96, 96, 96]
 
 _C.SOLVER = CN()
 # Adam, AdamW

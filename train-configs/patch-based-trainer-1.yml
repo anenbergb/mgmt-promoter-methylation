@@ -1,0 +1,17 @@
+DATA:
+  MODALITY: t1c
+  SOURCE: pickle-subjects
+  PICKLE_SUBJECTS:
+    folder_path: /home/bryan/expr/brain_tumor/2023-08-08/preprocess-subjects-crop-64-t1c
+PATCH_BASED_TRAINER:
+  ENABLED: True
+  TRANSFORMS_ENABLED: False
+  WEIGHTED_SAMPLER:
+    patch_size: [64, 64, 64]
+  QUEUE:
+    samples_per_volume: 50
+    max_length: 2500
+VAL_INFERENCE:
+  MODE: CropLargestTumor
+  CROP_LARGEST_TUMOR:
+    crop_dim: [96, 96, 96]
