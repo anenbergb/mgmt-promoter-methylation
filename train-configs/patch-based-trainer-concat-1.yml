@@ -1,8 +1,8 @@
 DATA:
-  MODALITY: t1c
+  MODALITY: concat
   SOURCE: pickle-subjects
   PICKLE_SUBJECTS:
-    folder_path: /home/bryan/expr/brain_tumor/preprocess-subjects/resample-1.8-crop-64-t1c
+    folder_path: /home/bryan/expr/brain_tumor/preprocess-subjects/resample-1.8-crop-64
   LAZY_LOAD_TRAIN: True
 PATCH_BASED_TRAINER:
   ENABLED: True

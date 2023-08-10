@@ -36,7 +36,7 @@ def make_concat_image(subject: tio.Subject, modality: list[str] = ["t2w"]) -> ti
         assert m in subject
         tensors.append(subject[m].tensor)
     tensor = torch.cat(tensors, dim=0)
-    return tio.ScalarImage(tensor=tensor)
+    return tio.ScalarImage(tensor=tensor, affine=subject[modality[0]].affine)
 
 
 def get_max_shape(subjects):
