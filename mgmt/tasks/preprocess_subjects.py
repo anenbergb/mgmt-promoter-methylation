@@ -72,7 +72,7 @@ def main(
         cfg.DATA.NIFTI.TEST_FOLDER_PREFIX,
     )
 
-    transforms = datamodule.get_transforms_patches()
+    transforms = datamodule.get_transforms_patches(train=True)
     if mode == "pickle-subjects":
         save_subject_pickle(subjects, transforms, pickle_save_path)
     if mode == "pickle-dataset":

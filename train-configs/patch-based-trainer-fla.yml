@@ -1,8 +1,8 @@
 DATA:
-  MODALITY: concat
+  MODALITY: fla
   SOURCE: pickle-subjects
   PICKLE_SUBJECTS:
-    folder_path: /home/bryan/expr/brain_tumor/preprocess-subjects/resample-1.8-crop-64
+    folder_path: /home/bryan/expr/brain_tumor/preprocess-subjects/resample-1.8-crop-64-fla
   LAZY_LOAD_TRAIN: True
 PATCH_BASED_TRAINER:
   ENABLED: True
@@ -12,7 +12,7 @@ PATCH_BASED_TRAINER:
   QUEUE:
     # 491 * 5 = 2455
     samples_per_volume: 5
-    max_length: 1000
+    max_length: 2500
 VAL_INFERENCE:
   MODE: CropLargestTumor
   CROP_LARGEST_TUMOR:
