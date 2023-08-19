@@ -75,7 +75,7 @@ _C.DATA.PICKLE_SUBJECTS.filter_file_prefix = "P-"
 _C.DATA.TRAIN_VAL_RATIO = 0.85
 _C.DATA.TRAIN_VAL_MANUAL_SEED = 10
 _C.DATA.BATCH_SIZE = 16
-_C.DATA.NUM_WORKERS = 10
+_C.DATA.NUM_WORKERS = 4
 # 'fla', 't1w', 't1c', 't2w', 'concat'
 _C.DATA.MODALITY = "t1c"  # "concat"
 _C.DATA.MODALITY_CONCAT = ["fla", "t1w", "t1c", "t2w"]
