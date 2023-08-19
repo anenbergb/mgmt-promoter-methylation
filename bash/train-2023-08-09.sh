@@ -122,18 +122,6 @@
 # SEED_EVERYTHING 1 \
 # TRAINER.max_epochs 200
 
-EXPR_DIR=/home/bryan/expr/brain_tumor/2023-08-09/try2/resnet-concat-100-no-resample
-
-for i in {1..2}
-do
-    python mgmt/tasks/train.py \
-    -c architectures/ResNet-a.yml \
-    -c train-configs/patch-based-trainer-concat-crop-64.yml \
-    OUTPUT_DIR "${EXPR_DIR}/run-${i}" \
-    SEED_EVERYTHING $i \
-    TRAINER.max_epochs 100
-done
-
 # EXPR_DIR=/home/bryan/expr/brain_tumor/2023-08-09/try2/resnet-t1c-100-no-resample
 
 # for i in {1..2}
@@ -146,11 +134,47 @@ done
 #     TRAINER.max_epochs 100
 # done
 
+# EXPR_DIR=/home/bryan/expr/brain_tumor/2023-08-09/try2/resnet-concat-100-no-resample
+
+# for i in {1..2}
+# do
+#     python mgmt/tasks/train.py \
+#     -c architectures/ResNet-a.yml \
+#     -c train-configs/patch-based-trainer-concat-crop-64.yml \
+#     OUTPUT_DIR "${EXPR_DIR}/run-${i}" \
+#     SEED_EVERYTHING $i \
+#     TRAINER.max_epochs 100
+# done
+
+EXPR_DIR=/home/bryan/expr/brain_tumor/2023-08-09/try2/resnet-concat-100-resample-1.5
+
+for i in {1..2}
+do
+    python mgmt/tasks/train.py \
+    -c architectures/ResNet-a.yml \
+    -c train-configs/patch-based-trainer-concat-resample-1.5-crop-64.yml \
+    OUTPUT_DIR "${EXPR_DIR}/run-${i}" \
+    SEED_EVERYTHING $i \
+    TRAINER.max_epochs 100
+done
+
+EXPR_DIR=/home/bryan/expr/brain_tumor/2023-08-09/try2/resnet-concat-100-resample-1.2
+
+for i in {1..2}
+do
+    python mgmt/tasks/train.py \
+    -c architectures/ResNet-a.yml \
+    -c train-configs/patch-based-trainer-concat-resample-1.2-crop-64.yml \
+    OUTPUT_DIR "${EXPR_DIR}/run-${i}" \
+    SEED_EVERYTHING $i \
+    TRAINER.max_epochs 100
+done
+
 EXPR_DIR=/home/bryan/expr/brain_tumor/2023-08-09/try3/resnet-concat-200
 
 python mgmt/tasks/train.py \
 -c architectures/ResNet-a.yml \
--c train-configs/patch-based-trainer-concat-1.yml \
+-c train-configs/patch-based-trainer-concat-crop-64.yml \
 OUTPUT_DIR "${EXPR_DIR}/seed-1" \
 SEED_EVERYTHING 1 \
 TRAINER.max_epochs 200
