@@ -116,6 +116,25 @@ class Classifier(LightningModule):
             rank_zero_only: Whether the value will be logged only on rank 0.
                 This will prevent synchronization which would produce a deadlock
                 as not all processes would perform this log call.
+
+        Under the hood, Lightning does the following (pseudocode):
+        model.train()
+        torch.set_grad_enabled(True)
+
+        for batch_idx, batch in enumerate(train_dataloader):
+            loss = training_step(batch, batch_idx)
+
+            # clear gradients
+            optimizer.zero_grad()
+
+            # backward
+            loss.backward()
+
+            # update parameters
+            optimizer.step()
+
+
+        Dictionary must include "loss" key
         """
         logits, preds, binary_preds, target = self.infer_batch(batch)
         loss = self.criterion(logits, target.to(torch.float))

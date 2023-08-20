@@ -198,7 +198,7 @@ def plot_subject(
     subject_include=None,
     **kwargs,
 ):
-    num_images = len(subject)
+    num_images = len(subject) if subject_include is None else len(subject_include)
     many_images = num_images > 2
     subplots_kwargs = {"figsize": figsize}
     try:

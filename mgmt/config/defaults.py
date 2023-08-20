@@ -317,5 +317,21 @@ _C.MODEL.EfficientNet.stem_kernel_size = 3
 _C.MODEL.EfficientNet.stem_stride = 2
 _C.MODEL.EfficientNet.head_output_filters = 256
 
+_C.MODEL.MultiResolutionWithMask = CN()
+_C.MODEL.MultiResolutionWithMask.pool = "adaptiveavg"
+_C.MODEL.MultiResolutionWithMask.num_classes = 1
+
+
+_C.BACKBONE = CN()
+_C.BACKBONE.NAME = "BasicBackbone"
+_C.BACKBONE.BasicBackbone = CN()
+_C.BACKBONE.BasicBackbone.block_num_convs = [4, 4, 3, 2, 2]
+_C.BACKBONE.BasicBackbone.block_out_channels = [16, 40, 64, 88, 112]
+_C.BACKBONE.BasicBackbone.act = "relu"
+_C.BACKBONE.BasicBackbone.norm = ["group", {"eps": 1e-5, "num_groups": 8}]
+_C.BACKBONE.BasicBackbone.dropout = 0.1
+_C.BACKBONE.BasicBackbone.dropout_dim = 1
+_C.BACKBONE.BasicBackbone.groups = 1
+
 _C.METRICS = CN()
 _C.METRICS.THRESHOLD = 0.5

@@ -21,6 +21,11 @@ Because there are 5 blocks / feature maps, I have five separate heads / predicti
 During training, I keep track of my performance individually for each head, and independently save the best performing checkpoints for different heads. Then I also train multiple ensembles of the same model. At the very end, I will choose to combine the top `N` combinations of models and heads (e.g., any one model may contribute one or several best performing heads).
 Finally I am using a `0.99` EMA decay for LR scheduling (decayed each epoch).
 
+Other notes:
+- weight standardization applied after group norm
+- multiple model checkpointers. One for each of the logits outputs 'l1', 'l2', 'l3', 'l4', 'l5', 'mgmt'. Save the checkpoint with maximum val accuracy.
+- for a model to be included in the ensemble, it must have at least 0.6 accuracy
+
 ```python
 import os, glob, numpy as np, pandas as pd
 import tensorflow as tf

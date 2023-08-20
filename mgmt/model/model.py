@@ -1,7 +1,9 @@
 import monai
 from fvcore.common.config import CfgNode
 
+from mgmt.model.basic_backbone import BasicBackbone
 from mgmt.model.efficientnet import EfficientNet
+from mgmt.model.multiresolution import MultiResolutionWithMask
 
 
 def get_n_input_channels(cfg: CfgNode) -> int:
@@ -26,4 +28,17 @@ def build_model(cfg: CfgNode):
         model_args = cfg.MODEL.EfficientNet
         model_args["in_channels"] = input_channels
         model = EfficientNet(**model_args)
+    elif cfg.MODEL.NAME == "MultiResolutionWithMask":
+        model_args = cfg.MODEL.MultiResolutionWithMask
+        model_args["backbone"] = build_backbone(cfg)
+        model = MultiResolutionWithMask(**model_args)
     return model
+
+
+def build_backbone(cfg: CfgNode):
+    input_channels = get_n_input_channels(cfg)
+    if cfg.BACKBONE.NAME == "BasicBackbone":
+        args = cfg.BACKBONE.BasicBackbone
+        args["n_input_channels"] = input_channels
+        backbone = BasicBackbone(**args)
+    return backbone
