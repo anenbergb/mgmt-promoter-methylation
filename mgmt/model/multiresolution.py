@@ -33,12 +33,12 @@ class MultiResolutionWithMask(nn.Module):
             if block.stride > 1:
                 self.mask_downsample[name] = nn.MaxPool3d(2)
             self.heads[name] = nn.Sequential(
-                pool_type(output_size=(1, 1, 1)), nn.Conv3d(block.out_channels, num_classes, 1)
+                pool_type(output_size=(1, 1, 1)), nn.Conv3d(block.out_channels, num_classes, 1), nn.Flatten()
             )
             block = block
 
         self.heads["final"] = nn.Sequential(
-            pool_type(output_size=(1, 1, 1)), nn.Conv3d(block.out_channels, num_classes, 1)
+            pool_type(output_size=(1, 1, 1)), nn.Conv3d(block.out_channels, num_classes, 1), nn.Flatten()
         )
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor) -> dict[str, torch.Tensor]:

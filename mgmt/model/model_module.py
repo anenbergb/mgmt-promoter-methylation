@@ -237,3 +237,217 @@ class Classifier(LightningModule):
         self.logger.experiment.add_image(
             f"val_classification_grid", tensor, global_step=self.global_step, dataformats="HWC"
         )
+
+
+class ClassifierMultiResolution(LightningModule):
+    def __init__(
+        self,
+        cfg: CfgNode,
+        steps_per_epoch=50,
+    ):
+        super().__init__()
+        self.cfg = cfg
+        self.steps_per_epoch = steps_per_epoch
+
+        self.net = build_model(cfg)
+        self.head_names = list(self.net.heads.keys())
+
+        self.criterion = BCEWithLogitsLoss()
+        self.add_metrics()
+        self.validation_step_outputs = []
+
+    def add_metrics(self):
+        self.train_acc = {}
+        self.val_acc = {}
+        self.train_auc = {}
+        self.val_auc = {}
+        for head_name in self.head_names:
+            self.train_acc[head_name] = torchmetrics.classification.BinaryAccuracy(threshold=self.cfg.METRICS.THRESHOLD)
+            self.val_acc[head_name] = torchmetrics.classification.BinaryAccuracy(threshold=self.cfg.METRICS.THRESHOLD)
+            self.train_auc[head_name] = torchmetrics.classification.BinaryAUROC()
+            self.val_auc[head_name] = torchmetrics.classification.BinaryAUROC()
+
+    def configure_optimizers(self):
+        optimizer = build_optimizer(self.net.parameters(), self.cfg)
+        scheduler = build_lr_scheduler(optimizer, self.cfg, self.steps_per_epoch)
+        interval = "step" if self.cfg.SOLVER.SCHEDULER_NAME == "OneCycleLR" else "epoch"
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": interval,
+                "frequency": 1,
+                # Metric to to monitor for schedulers like `ReduceLROnPlateau`
+                "monitor": "val/loss",
+                "strict": True,
+            },
+        }
+
+    def apply_criterion(self, logits, target):
+        # TODO: double check that I can use the same BCE instance
+        target = target.to(torch.float)
+        losses = {}
+        for name, logits_vec in logits.items():
+            losses[name] = self.criterion(logits_vec, target)
+
+        return losses
+
+    def infer_batch(self, batch):
+        x = batch[self.cfg.DATA.MODALITY][torchio.DATA]
+        target = batch["category_id"]
+        tumor_mask = (batch["tumor"][torchio.DATA] > 0).type(torch.float)
+        logits_map = self.net(x, tumor_mask)
+        preds = {}
+        binary_preds = {}
+        for name, logits in logits_map.items():
+            preds[name] = torch.sigmoid(logits)
+            binary_preds[name] = (preds > self.cfg.METRICS.THRESHOLD).to(torch.int64)
+        return logits, preds, binary_preds, target
+
+    def training_step(self, batch, batch_idx):
+        logits, preds, binary_preds, target = self.infer_batch(batch)
+        losses = self.apply_criterion(logits, target)
+        total_loss = 0
+        for name, loss in losses.items():
+            self.log(
+                f"train-loss/{name}",
+                loss,
+                on_step=True,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=self.cfg.DATA.BATCH_SIZE,
+            )
+            total_loss += loss
+        self.log(
+            f"train-loss/total",
+            total_loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            batch_size=self.cfg.DATA.BATCH_SIZE,
+        )
+
+        self.log_train_metrics(preds, binary_preds, target)
+        return total_loss
+
+    def log_train_metrics(self, preds_map, binary_preds_map, target):
+        for name in self.head_names:
+            preds = preds_map[name]
+            binary_preds = binary_preds_map[name]
+            self.train_acc[name](binary_preds, target)
+            self.train_auc[name](preds, target)
+
+            self.log_dict(
+                {
+                    f"train-accuracy/{name}": self.train_acc[name],
+                    f"train-auc/{name}": self.train_auc[name],
+                },
+                on_step=True,
+                on_epoch=True,
+                prog_bar=False,
+                batch_size=self.cfg.DATA.BATCH_SIZE,
+            )
+
+    def log_val_metrics(self, preds_map, binary_preds_map, target):
+        for name in self.head_names:
+            preds = preds_map[name]
+            binary_preds = binary_preds_map[name]
+            self.val_acc[name](binary_preds, target)
+            self.val_auc[name](preds, target)
+            self.log(
+                f"val-accuracy/{name}",
+                self.val_acc[name],
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=self.cfg.DATA.BATCH_SIZE,
+            )
+            self.log(
+                f"val-auc/{name}",
+                self.val_auc[name],
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+                batch_size=self.cfg.DATA.BATCH_SIZE,
+            )
+
+    def validation_step(self, batch, batch_idx):
+        logits, preds, binary_preds, target = self.infer_batch(batch)
+        losses = self.apply_criterion(logits, target)
+        total_loss = 0
+        for name, loss in losses.items():
+            self.log(
+                f"val-loss/{name}",
+                loss,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=self.cfg.DATA.BATCH_SIZE,
+            )
+            total_loss += loss
+        self.log(
+            f"val-loss/total",
+            total_loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            batch_size=self.cfg.DATA.BATCH_SIZE,
+        )
+
+        self.log_val_metrics(preds, binary_preds, target)
+
+        # only visualize first and final epoch
+        # TODO: make sure this works with restart
+        if self.current_epoch in (0, self.cfg.TRAINER.max_epochs - 1):
+            self.visualize_predictions(batch, binary_preds, target)
+
+        self.validation_step_outputs.append(
+            {
+                "preds": preds.cpu().numpy(),
+                "target": target.cpu().numpy(),
+                "patient_id": batch["patient_id"].cpu().numpy(),
+            }
+        )
+
+        return {"loss": loss, "preds": preds, "target": target}
+
+    def on_validation_epoch_end(self):
+        val_output_keys = ("preds", "target", "patient_id")
+        all_outputs = {key: np.concatenate([x[key] for x in self.validation_step_outputs]) for key in val_output_keys}
+        self.plot_classification_grid(all_outputs["preds"], all_outputs["target"], all_outputs["patient_id"])
+        self.validation_step_outputs.clear()
+
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        preds, _, _, _ = self.infer_batch(batch)
+        return preds
+
+    def visualize_predictions(self, batch, binary_preds, targets):
+        """
+        Tensorboard
+            - https://pytorch.org/docs/stable/tensorboard.html
+        """
+        batch_subjects = get_subjects_from_batch(batch)
+        for subject, pred, target in zip(batch_subjects, binary_preds, targets):
+            # TODO: make sure this works for concat mode
+            image = plot_subject_with_label(
+                subject,
+                show=False,
+                return_fig=False,
+                # figsize=(6.4, 1.6),
+                add_metadata=True,
+                add_tumor_legend=True,
+            )
+            color = "green" if pred == target else "red"
+            image = add_color_border(image, color=color)
+            tensor = torch.from_numpy(image)  # HWC
+            self.logger.experiment.add_image(
+                f"val_subject/{subject.patient_id}", tensor, global_step=self.global_step, dataformats="HWC"
+            )
+
+    def plot_classification_grid(self, preds, target, patient_id):
+        grid = plot_classification_grid(preds, target, patient_id)
+        tensor = torch.from_numpy(grid)  # HWC
+        self.logger.experiment.add_image(
+            f"val_classification_grid", tensor, global_step=self.global_step, dataformats="HWC"
+        )
