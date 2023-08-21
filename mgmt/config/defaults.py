@@ -146,7 +146,7 @@ _C.PREPROCESS.RESAMPLE_ENABLED = False
 _C.PREPROCESS.RESAMPLE = CN()
 # target is the output spacing. 2.0 means divide size by factor of 2.0
 _C.PREPROCESS.RESAMPLE.target = 2.0
-_C.PREPROCESS.RESAMPLE.image_interpolation = "bspline"
+_C.PREPROCESS.RESAMPLE.image_interpolation = "linear"
 _C.PREPROCESS.RESAMPLE.label_interpolation = "nearest"
 
 _C.AUGMENT = CN()

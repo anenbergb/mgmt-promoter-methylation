@@ -232,6 +232,10 @@ class DataModule(LightningDataModule):
         if self.cfg.PREPROCESS.RESAMPLE_ENABLED:
             transforms.append(tio.Resample(**self.cfg.PREPROCESS.RESAMPLE))
 
+        # WARNING: If Resample interpolation is lanczos or bspline it can change the range
+        # for pixel values. SkullCropTransform might not work.
+        # simple fix is to use linear interpolation
+        # better fix is to compute a skull mask before resample and save as label image.
         if self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM_ENABLED:
             transforms.append(SkullCropTransform(**self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM))
 
@@ -254,7 +258,7 @@ class DataModule(LightningDataModule):
             transforms.append(tio.RandomAffine(**self.cfg.AUGMENT.RANDOM_AFFINE))
         if train and self.cfg.AUGMENT.RANDOM_GAMMA_ENABLED:
             transforms.append(tio.RandomGamma(**self.cfg.AUGMENT.RANDOM_GAMMA))
-        if train and self.cfg.AUGMENT.RANDOM_BIAS_FIELD:
+        if train and self.cfg.AUGMENT.RANDOM_BIAS_FIELD_ENABLED:
             transforms.append(tio.RandomBiasField(**self.cfg.AUGMENT.RANDOM_BIAS_FIELD))
         if train and self.cfg.AUGMENT.RANDOM_MOTION_ENABLED:
             transforms.append(tio.RandomMotion(**self.cfg.AUGMENT.RANDOM_MOTION))
@@ -275,7 +279,7 @@ class DataModule(LightningDataModule):
             transforms.append(tio.RandomAffine(**self.cfg.AUGMENT.RANDOM_AFFINE))
         if train and self.cfg.AUGMENT.RANDOM_GAMMA_ENABLED:
             transforms.append(tio.RandomGamma(**self.cfg.AUGMENT.RANDOM_GAMMA))
-        if train and self.cfg.AUGMENT.RANDOM_BIAS_FIELD:
+        if train and self.cfg.AUGMENT.RANDOM_BIAS_FIELD_ENABLED:
             transforms.append(tio.RandomBiasField(**self.cfg.AUGMENT.RANDOM_BIAS_FIELD))
         if train and self.cfg.AUGMENT.RANDOM_MOTION_ENABLED:
             transforms.append(tio.RandomMotion(**self.cfg.AUGMENT.RANDOM_MOTION))
