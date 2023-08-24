@@ -15,6 +15,7 @@ from mgmt.data.nifti import load_subjects as nifti_load_subjects
 from mgmt.data.numpy import load_subjects as numpy_load_subjects
 from mgmt.data.pickle import load_subject_pickles
 from mgmt.data.subject_transforms import CropLargestTumor
+from mgmt.transforms.pad_to_min_shape import PadToMinShape
 from mgmt.transforms.patch_sampler_probability_map import AddPatchSamplerProbabilityMap
 from mgmt.transforms.rescale_intensity import RescaleIntensity
 from mgmt.transforms.skull_crop import SkullCropTransform
@@ -238,6 +239,8 @@ class DataModule(LightningDataModule):
         # better fix is to compute a skull mask before resample and save as label image.
         if self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM_ENABLED:
             transforms.append(SkullCropTransform(**self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM))
+
+        transforms.append(PadToMinShape(min_shape=self.cfg.PATCH_BASED_TRAINER.WEIGHTED_SAMPLER.patch_size))
 
         if self.cfg.PREPROCESS.ADD_PATCH_SAMPLER_PROB_MAP_ENABLED:
             transforms.append(
