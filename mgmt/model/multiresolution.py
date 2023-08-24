@@ -5,6 +5,8 @@ from monai.networks.layers.factories import Pool
 from monai.networks.layers.utils import get_pool_layer
 from torch import nn
 
+from mgmt.model.utils import weights_init
+
 
 class MultiResolutionWithMask(nn.Module):
     """
@@ -33,13 +35,15 @@ class MultiResolutionWithMask(nn.Module):
             if block.stride > 1:
                 self.mask_downsample[name] = nn.MaxPool3d(2)
             self.heads[name] = nn.Sequential(
-                pool_type(output_size=(1, 1, 1)), nn.Conv3d(block.out_channels, num_classes, 1), nn.Flatten()
+                pool_type(output_size=(1, 1, 1)), nn.Conv3d(block.out_channels, num_classes, 1, bias=True), nn.Flatten()
             )
             block = block
 
         self.heads["final"] = nn.Sequential(
-            pool_type(output_size=(1, 1, 1)), nn.Conv3d(block.out_channels, num_classes, 1), nn.Flatten()
+            pool_type(output_size=(1, 1, 1)), nn.Conv3d(block.out_channels, num_classes, 1, bias=True), nn.Flatten()
         )
+
+        self.apply(weights_init)
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor) -> dict[str, torch.Tensor]:
         backbone_out = self.backbone(x)

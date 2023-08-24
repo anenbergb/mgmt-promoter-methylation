@@ -6,6 +6,8 @@ from monai.networks.blocks import Convolution
 from monai.networks.layers.utils import get_dropout_layer
 from torch import nn
 
+from mgmt.model.utils import weights_init
+
 
 class BasicBlock(nn.Sequential):
     def __init__(
@@ -36,7 +38,7 @@ class BasicBlock(nn.Sequential):
             "dropout": None,
             "dropout_dim": dropout_dim,
             "groups": groups,
-            "bias": True,
+            "bias": False,
         }
         self.append(
             Convolution(
@@ -49,6 +51,8 @@ class BasicBlock(nn.Sequential):
             self.append(Convolution(**conv_kwargs, in_channels=out_channels, strides=1))
         if dropout is not None:
             self.append(get_dropout_layer(name=dropout, dropout_dim=dropout_dim))
+
+        self.apply(weights_init)
 
 
 class BasicBackbone(nn.Module):
