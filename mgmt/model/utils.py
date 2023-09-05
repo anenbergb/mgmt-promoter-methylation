@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 
-def weights_init(m):
+def weights_init(m: nn.Module):
     conv_type = (nn.Conv1d, nn.Conv2d, nn.Conv3d)
     norm_type = (
         nn.BatchNorm1d,

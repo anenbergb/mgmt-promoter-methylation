@@ -5,6 +5,8 @@ from mgmt.model.basic_backbone import BasicBackbone
 from mgmt.model.efficientnet import EfficientNet
 from mgmt.model.multiresolution import MultiResolutionWithMask
 
+from mgmt.model.parametrizations import make_conv_parametrization_function
+
 
 def get_n_input_channels(cfg: CfgNode) -> int:
     n_input_channels = 1
@@ -41,4 +43,7 @@ def build_backbone(cfg: CfgNode):
         args = cfg.BACKBONE.BasicBackbone
         args["n_input_channels"] = input_channels
         backbone = BasicBackbone(**args)
+    if cfg.PARAMETRIZATION.ENABLED:
+        backbone.apply(make_conv_parametrization_function(cfg))
+
     return backbone

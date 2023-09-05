@@ -333,5 +333,17 @@ _C.BACKBONE.BasicBackbone.dropout = 0.1
 _C.BACKBONE.BasicBackbone.dropout_dim = 1
 _C.BACKBONE.BasicBackbone.groups = 1
 
+# Weight parametrization https://pytorch.org/tutorials/intermediate/parametrizations.html
+_C.PARAMETRIZATION = CN()
+_C.PARAMETRIZATION.ENABLED = False
+_C.PARAMETRIZATION.NAME = "Standardization"
+_C.PARAMETRIZATION.Standardization = CN()
+_C.PARAMETRIZATION.Standardization.eps = 1e-5
+_C.PARAMETRIZATION.SpectralNorm = CN()
+_C.PARAMETRIZATION.SpectralNorm.n_power_iterations = 1
+_C.PARAMETRIZATION.SpectralNorm.eps = 1e-5
+_C.PARAMETRIZATION.WeightNorm = CN()
+_C.PARAMETRIZATION.Orthogonal = CN()
+_C.PARAMETRIZATION.Orthogonal.use_trivialization = True
 _C.METRICS = CN()
 _C.METRICS.THRESHOLD = 0.5
