@@ -6,6 +6,8 @@ from fvcore.common.config import CfgNode
 from lightning.pytorch import LightningDataModule, LightningModule, cli_lightning_logo
 from torch.nn import BCEWithLogitsLoss
 
+from dataclasses import dataclass, field
+
 from mgmt.data.subject_utils import get_subjects_from_batch
 from mgmt.data_science.plot_center_mass import add_color_border
 from mgmt.model import build_model
@@ -238,6 +240,14 @@ class Classifier(LightningModule):
             f"val_classification_grid", tensor, global_step=self.global_step, dataformats="HWC"
         )
 
+@dataclass
+class PredictionsMultiResolution:
+    # raw scores in range (-inf, +inf)
+    logits: dict[str, torch.tensor]
+    # score in range (0, 1.0)
+    probabilities: dict[str, torch.tensor]
+    # binary prediction {0, 1}
+
 
 class ClassifierMultiResolution(LightningModule):
     def __init__(
@@ -251,6 +261,9 @@ class ClassifierMultiResolution(LightningModule):
 
         self.net = build_model(cfg)
         self.head_names = list(self.net.heads.keys())
+        import ipdb
+        ipdb.set_trace()
+        # verify that head_names make sense
 
         self.criterion = BCEWithLogitsLoss()
         self.add_metrics()
@@ -285,7 +298,7 @@ class ClassifierMultiResolution(LightningModule):
         }
 
     def apply_criterion(self, logits, target):
-        # TODO: double check that I can use the same BCE instance
+        # CHECK: double check that I can use the same BCE instance
         target = target.to(torch.float)
         losses = {}
         for name, logits_vec in logits.items():
@@ -297,6 +310,9 @@ class ClassifierMultiResolution(LightningModule):
         x = batch[self.cfg.DATA.MODALITY][torchio.DATA]
         target = batch["category_id"]
         tumor_mask = (batch["tumor"][torchio.DATA] > 0).type(torch.float)
+        # CHECK: that backprop doesn't update tumor_mask
+        import ipdb
+        ipdb.set_trace()
         logits_map = self.net(x, tumor_mask)
         preds = {}
         binary_preds = {}
@@ -315,7 +331,7 @@ class ClassifierMultiResolution(LightningModule):
                 loss,
                 on_step=True,
                 on_epoch=True,
-                prog_bar=True,
+                prog_bar=False,
                 batch_size=self.cfg.DATA.BATCH_SIZE,
             )
             total_loss += loss
@@ -349,29 +365,6 @@ class ClassifierMultiResolution(LightningModule):
                 batch_size=self.cfg.DATA.BATCH_SIZE,
             )
 
-    def log_val_metrics(self, preds_map, binary_preds_map, target):
-        for name in self.head_names:
-            preds = preds_map[name]
-            binary_preds = binary_preds_map[name]
-            self.val_acc[name](binary_preds, target)
-            self.val_auc[name](preds, target)
-            self.log(
-                f"val-accuracy/{name}",
-                self.val_acc[name],
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                batch_size=self.cfg.DATA.BATCH_SIZE,
-            )
-            self.log(
-                f"val-auc/{name}",
-                self.val_auc[name],
-                on_step=False,
-                on_epoch=True,
-                prog_bar=False,
-                batch_size=self.cfg.DATA.BATCH_SIZE,
-            )
-
     def validation_step(self, batch, batch_idx):
         logits, preds, binary_preds, target = self.infer_batch(batch)
         losses = self.apply_criterion(logits, target)
@@ -382,7 +375,7 @@ class ClassifierMultiResolution(LightningModule):
                 loss,
                 on_step=False,
                 on_epoch=True,
-                prog_bar=True,
+                prog_bar=False,
                 batch_size=self.cfg.DATA.BATCH_SIZE,
             )
             total_loss += loss
@@ -412,6 +405,29 @@ class ClassifierMultiResolution(LightningModule):
 
         return {"loss": loss, "preds": preds, "target": target}
 
+    def log_val_metrics(self, preds_map, binary_preds_map, target):
+        for name in self.head_names:
+            preds = preds_map[name]
+            binary_preds = binary_preds_map[name]
+            self.val_acc[name](binary_preds, target)
+            self.val_auc[name](preds, target)
+            self.log(
+                f"val-accuracy/{name}",
+                self.val_acc[name],
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=self.cfg.DATA.BATCH_SIZE,
+            )
+            self.log(
+                f"val-auc/{name}",
+                self.val_auc[name],
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+                batch_size=self.cfg.DATA.BATCH_SIZE,
+            )
+
     def on_validation_epoch_end(self):
         val_output_keys = ("preds", "target", "patient_id")
         all_outputs = {key: np.concatenate([x[key] for x in self.validation_step_outputs]) for key in val_output_keys}
@@ -422,13 +438,13 @@ class ClassifierMultiResolution(LightningModule):
         preds, _, _, _ = self.infer_batch(batch)
         return preds
 
-    def visualize_predictions(self, batch, binary_preds, targets):
+    def visualize_predictions(self, batch, binary_preds_map, targets):
         """
         Tensorboard
             - https://pytorch.org/docs/stable/tensorboard.html
         """
         batch_subjects = get_subjects_from_batch(batch)
-        for subject, pred, target in zip(batch_subjects, binary_preds, targets):
+        for subject, target in zip(batch_subjects, targets):
             # TODO: make sure this works for concat mode
             image = plot_subject_with_label(
                 subject,
@@ -451,3 +467,4 @@ class ClassifierMultiResolution(LightningModule):
         self.logger.experiment.add_image(
             f"val_classification_grid", tensor, global_step=self.global_step, dataformats="HWC"
         )
+

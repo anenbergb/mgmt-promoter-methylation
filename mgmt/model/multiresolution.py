@@ -33,7 +33,8 @@ class MultiResolutionWithMask(nn.Module):
         block = None
         for name, block in backbone.blocks.items():
             if block.stride > 1:
-                self.mask_downsample[name] = nn.MaxPool3d(2)
+                # typically downsample by 2x
+                self.mask_downsample[name] = nn.MaxPool3d(block.stride)
             self.heads[name] = nn.Sequential(
                 pool_type(output_size=(1, 1, 1)), nn.Conv3d(block.out_channels, num_classes, 1, bias=True), nn.Flatten()
             )
