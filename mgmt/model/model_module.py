@@ -5,8 +5,9 @@ import torchmetrics
 from fvcore.common.config import CfgNode
 from lightning.pytorch import LightningDataModule, LightningModule, cli_lightning_logo
 from torch.nn import BCEWithLogitsLoss
+from collections import defaultdict
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 from mgmt.data.subject_utils import get_subjects_from_batch
 from mgmt.data_science.plot_center_mass import add_color_border
@@ -240,13 +241,115 @@ class Classifier(LightningModule):
             f"val_classification_grid", tensor, global_step=self.global_step, dataformats="HWC"
         )
 
+
 @dataclass
-class PredictionsMultiResolution:
+class PredictionsNumpy:
+    logits: np.ndarray
+    probs: np.ndarray
+    binary_preds: np.ndarray
+
+    def __len__(self):
+        return len(self.logits)
+
+    def __getitem__(self, i):
+        return {
+            "logits": self.logits[i],
+            "probs": self.probs[i],
+            "binary_preds": self.binary_preds[i],
+        }
+
+    @classmethod
+    def concatenate(cls, predictions_list):
+        assert len(predictions_list) > 0
+        attrs = defaultdict(list)
+
+        for p in predictions_list:
+            for name in ("logits", "probs", "binary_preds"):
+                val = getattr(p, name)
+                attrs[name].append(val)
+
+        concat = {k: np.concatenate(v) for k, v in attrs.items()}
+        return Predictions(**concat)
+
+
+@dataclass
+class Predictions:
     # raw scores in range (-inf, +inf)
-    logits: dict[str, torch.tensor]
+    logits: torch.tensor
+    threshold: float = field(default=0.5)
     # score in range (0, 1.0)
-    probabilities: dict[str, torch.tensor]
+    probs: torch.tensor = field(default=None)
     # binary prediction {0, 1}
+    binary_preds: torch.tensor = field(init=False)
+
+    def __post_init__(self):
+        if self.probs is None:
+            self.probs = torch.sigmoid(self.logits)
+        self.binary_preds = (self.probs > self.threshold).to(torch.int64)
+
+    def to_numpy(self):
+        return PredictionsNumpy(
+            logits=self.logits.cpu().numpy() if self.logits is not None else None,
+            probs=self.probs.cpu().numpy() if self.probs is not None else None,
+            binary_preds=self.binary_preds.cpu().numpy() if self.binary_preds is not None else None,
+        )
+
+
+class PredictionsMultiResolution:
+    def __init__(self, logits: dict[str, torch.tensor], threshold: float = 0.5):
+        self.threshold = threshold
+        self.names = list(logits.keys())
+        self.predictions = {}
+        for name, logit_vec in logits.items():
+            self.predictions[name] = Predictions(logit_vec, threshold)
+
+        self.average_by_logits = self._average_by_logits()
+        self.average_by_probs = self._average_by_probs()
+
+    def _average_by_logits(self):
+        logits = [x.logits for x in self.predictions.values()]
+        logits_avg = torch.mean(torch.stack(logits), dim=0)
+        return Predictions(logits_avg, self.threshold)
+
+    def _average_by_probs(self):
+        probs = [x.probs for x in self.predictions.values()]
+        probs_avg = torch.mean(torch.stack(probs), dim=0)
+        return Predictions(logits=None, threshold=self.threshold, probs=probs_avg)
+
+    def __iter__(self):
+        for name, p in self.predictions.items():
+            yield (name, p)
+
+
+@dataclass
+class ValidationOutput:
+    predictions: PredictionsNumpy
+    targets: np.ndarray
+    patient_ids: np.ndarray
+
+    def __len__(self):
+        return len(self.targets)
+
+    def __getitem__(self, i):
+        ret = self.predictions[i]
+        ret["targets"] = self.targets[i]
+        ret["patient_ids"] = self.patient_ids[i]
+        return ret
+
+    @classmethod
+    def concatenate(cls, val_list):
+        assert len(val_list) > 0
+        attrs = defaultdict(list)
+        for v in val_list:
+            for name in ("predictions", "targets", "patient_ids"):
+                val = getattr(v, name)
+                attrs[name].append(val)
+
+        return ValidationOutput(
+            PredictionsNumpy.concatenate(attrs["predictions"]),
+            np.concatenate(attrs["targets"]),
+            np.concatenate(attrs["patient_ids"]),
+        )
 
 
 class ClassifierMultiResolution(LightningModule):
@@ -262,6 +365,7 @@ class ClassifierMultiResolution(LightningModule):
         self.net = build_model(cfg)
         self.head_names = list(self.net.heads.keys())
         import ipdb
+
         ipdb.set_trace()
         # verify that head_names make sense
 
@@ -297,13 +401,12 @@ class ClassifierMultiResolution(LightningModule):
             },
         }
 
-    def apply_criterion(self, logits, target):
+    def apply_criterion(self, predictions: PredictionsMultiResolution, target: torch.tensor):
         # CHECK: double check that I can use the same BCE instance
         target = target.to(torch.float)
         losses = {}
-        for name, logits_vec in logits.items():
-            losses[name] = self.criterion(logits_vec, target)
-
+        for name, p in predictions:
+            losses[name] = self.criterion(p.logits, target)
         return losses
 
     def infer_batch(self, batch):
@@ -311,19 +414,13 @@ class ClassifierMultiResolution(LightningModule):
         target = batch["category_id"]
         tumor_mask = (batch["tumor"][torchio.DATA] > 0).type(torch.float)
         # CHECK: that backprop doesn't update tumor_mask
-        import ipdb
-        ipdb.set_trace()
         logits_map = self.net(x, tumor_mask)
-        preds = {}
-        binary_preds = {}
-        for name, logits in logits_map.items():
-            preds[name] = torch.sigmoid(logits)
-            binary_preds[name] = (preds > self.cfg.METRICS.THRESHOLD).to(torch.int64)
-        return logits, preds, binary_preds, target
+        predictions = PredictionsMultiResolution(logits_map, self.cfg.METRICS.THRESHOLD)
+        return predictions, target
 
     def training_step(self, batch, batch_idx):
-        logits, preds, binary_preds, target = self.infer_batch(batch)
-        losses = self.apply_criterion(logits, target)
+        predictions, target = self.infer_batch(batch)
+        losses = self.apply_criterion(predictions, target)
         total_loss = 0
         for name, loss in losses.items():
             self.log(
@@ -344,16 +441,13 @@ class ClassifierMultiResolution(LightningModule):
             batch_size=self.cfg.DATA.BATCH_SIZE,
         )
 
-        self.log_train_metrics(preds, binary_preds, target)
+        self.log_train_metrics(predictions, target)
         return total_loss
 
-    def log_train_metrics(self, preds_map, binary_preds_map, target):
-        for name in self.head_names:
-            preds = preds_map[name]
-            binary_preds = binary_preds_map[name]
-            self.train_acc[name](binary_preds, target)
-            self.train_auc[name](preds, target)
-
+    def log_train_metrics(self, predictions: PredictionsMultiResolution, target: torch.tensor):
+        for name, p in predictions:
+            self.train_acc[name](p.binary_preds, target)
+            self.train_auc[name](p.probs, target)
             self.log_dict(
                 {
                     f"train-accuracy/{name}": self.train_acc[name],
@@ -366,8 +460,8 @@ class ClassifierMultiResolution(LightningModule):
             )
 
     def validation_step(self, batch, batch_idx):
-        logits, preds, binary_preds, target = self.infer_batch(batch)
-        losses = self.apply_criterion(logits, target)
+        predictions, target = self.infer_batch(batch)
+        losses = self.apply_criterion(predictions, target)
         total_loss = 0
         for name, loss in losses.items():
             self.log(
@@ -388,29 +482,25 @@ class ClassifierMultiResolution(LightningModule):
             batch_size=self.cfg.DATA.BATCH_SIZE,
         )
 
-        self.log_val_metrics(preds, binary_preds, target)
+        self.log_val_metrics(predictions, target)
+
+        output = ValidationOutput(
+            predictions=predictions.average_by_probs.to_numpy(),
+            targets=target.cpu().numpy(),
+            patient_ids=batch["patient_id"].cpu().numpy(),
+        )
 
         # only visualize first and final epoch
         # TODO: make sure this works with restart
         if self.current_epoch in (0, self.cfg.TRAINER.max_epochs - 1):
-            self.visualize_predictions(batch, binary_preds, target)
+            self.visualize_predictions(batch, output)
 
-        self.validation_step_outputs.append(
-            {
-                "preds": preds.cpu().numpy(),
-                "target": target.cpu().numpy(),
-                "patient_id": batch["patient_id"].cpu().numpy(),
-            }
-        )
+        self.validation_step_outputs.append(output)
 
-        return {"loss": loss, "preds": preds, "target": target}
-
-    def log_val_metrics(self, preds_map, binary_preds_map, target):
-        for name in self.head_names:
-            preds = preds_map[name]
-            binary_preds = binary_preds_map[name]
-            self.val_acc[name](binary_preds, target)
-            self.val_auc[name](preds, target)
+    def log_val_metrics(self, predictions: PredictionsMultiResolution, target: torch.tensor):
+        for name, p in predictions:
+            self.val_acc[name](p.binary_preds, target)
+            self.val_auc[name](p.probs, target)
             self.log(
                 f"val-accuracy/{name}",
                 self.val_acc[name],
@@ -429,22 +519,26 @@ class ClassifierMultiResolution(LightningModule):
             )
 
     def on_validation_epoch_end(self):
-        val_output_keys = ("preds", "target", "patient_id")
-        all_outputs = {key: np.concatenate([x[key] for x in self.validation_step_outputs]) for key in val_output_keys}
-        self.plot_classification_grid(all_outputs["preds"], all_outputs["target"], all_outputs["patient_id"])
+        val_outputs = ValidationOutput.concatenate(self.validation_step_outputs)
+        self.plot_classification_grid(val_outputs.predictions.probs, val_outputs.targets, val_outputs.patient_ids)
         self.validation_step_outputs.clear()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        preds, _, _, _ = self.infer_batch(batch)
-        return preds
+        predictions, target = self.infer_batch(batch)
+        output = ValidationOutput(
+            predictions=predictions.average_by_probs.to_numpy(),
+            targets=target.cpu().numpy(),
+            patient_ids=batch["patient_id"].cpu().numpy(),
+        )
+        return output
 
-    def visualize_predictions(self, batch, binary_preds_map, targets):
+    def visualize_predictions(self, batch, val_output):
         """
         Tensorboard
             - https://pytorch.org/docs/stable/tensorboard.html
         """
         batch_subjects = get_subjects_from_batch(batch)
-        for subject, target in zip(batch_subjects, targets):
+        for i, subject in enumerate(batch_subjects):
             # TODO: make sure this works for concat mode
             image = plot_subject_with_label(
                 subject,
@@ -454,7 +548,9 @@ class ClassifierMultiResolution(LightningModule):
                 add_metadata=True,
                 add_tumor_legend=True,
             )
-            color = "green" if pred == target else "red"
+            target = val_output[i]["targets"]
+            binary_pred = val_output[i]["binary_preds"]
+            color = "green" if binary_pred == target else "red"
             image = add_color_border(image, color=color)
             tensor = torch.from_numpy(image)  # HWC
             self.logger.experiment.add_image(
@@ -467,4 +563,3 @@ class ClassifierMultiResolution(LightningModule):
         self.logger.experiment.add_image(
             f"val_classification_grid", tensor, global_step=self.global_step, dataformats="HWC"
         )
-
