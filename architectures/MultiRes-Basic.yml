@@ -1,0 +1,7 @@
+MODEL:
+  NAME: MultiResolutionWithMask
+BACKBONE:
+  NAME: BasicBackbone
+PARAMETERIZATION:
+  ENABLED: True
+  NAME: Standardization

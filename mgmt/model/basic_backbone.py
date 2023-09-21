@@ -20,7 +20,7 @@ class BasicBlock(nn.Sequential):
         norm: Union[Tuple, str] = ("group", {"eps": 1e-5, "num_groups": 8}),
         dropout: Optional[float] = None,
         dropout_dim: int = 1,
-        groups: int = 8,  # typically this would be 1
+        groups: int = 1,  # dr. chang might actually use 8 here
     ):
         super().__init__()
         self.in_channels = in_channels

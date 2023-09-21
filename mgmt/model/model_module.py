@@ -253,9 +253,9 @@ class PredictionsNumpy:
 
     def __getitem__(self, i):
         return {
-            "logits": self.logits[i],
-            "probs": self.probs[i],
-            "binary_preds": self.binary_preds[i],
+            "logits": self.logits[i] if self.logits is not None else None,
+            "probs": self.probs[i] if self.probs is not None else None,
+            "binary_preds": self.binary_preds[i] if self.binary_preds is not None else None,
         }
 
     @classmethod
@@ -263,13 +263,23 @@ class PredictionsNumpy:
         assert len(predictions_list) > 0
         attrs = defaultdict(list)
 
+        is_none = set()
         for p in predictions_list:
             for name in ("logits", "probs", "binary_preds"):
                 val = getattr(p, name)
+
+                if name in is_none:
+                    continue
+                elif val is None:
+                    is_none.add(name)
+                    continue
+
                 attrs[name].append(val)
 
         concat = {k: np.concatenate(v) for k, v in attrs.items()}
-        return Predictions(**concat)
+        for key in is_none:
+            concat[key] = None
+        return PredictionsNumpy(**concat)
 
 
 @dataclass
@@ -364,9 +374,7 @@ class ClassifierMultiResolution(LightningModule):
 
         self.net = build_model(cfg)
         self.head_names = list(self.net.heads.keys())
-        import ipdb
 
-        ipdb.set_trace()
         # verify that head_names make sense
 
         self.criterion = BCEWithLogitsLoss()
@@ -378,11 +386,19 @@ class ClassifierMultiResolution(LightningModule):
         self.val_acc = {}
         self.train_auc = {}
         self.val_auc = {}
-        for head_name in self.head_names:
-            self.train_acc[head_name] = torchmetrics.classification.BinaryAccuracy(threshold=self.cfg.METRICS.THRESHOLD)
-            self.val_acc[head_name] = torchmetrics.classification.BinaryAccuracy(threshold=self.cfg.METRICS.THRESHOLD)
-            self.train_auc[head_name] = torchmetrics.classification.BinaryAUROC()
-            self.val_auc[head_name] = torchmetrics.classification.BinaryAUROC()
+        for train_val in ("train", "val"):
+            for head_name in self.head_names:
+                setattr(
+                    self,
+                    f"{train_val}_{head_name}_accuracy",
+                    torchmetrics.classification.BinaryAccuracy(threshold=self.cfg.METRICS.THRESHOLD),
+                )
+                setattr(self, f"{train_val}_{head_name}_auc", torchmetrics.classification.BinaryAUROC())
+
+    def get_metric(self, metric_name: str, head_name: str, is_train: bool = True):
+        train_val = "train" if is_train else "val"
+        key = f"{train_val}_{head_name}_{metric_name}"
+        return getattr(self, key)
 
     def configure_optimizers(self):
         optimizer = build_optimizer(self.net.parameters(), self.cfg)
@@ -446,12 +462,12 @@ class ClassifierMultiResolution(LightningModule):
 
     def log_train_metrics(self, predictions: PredictionsMultiResolution, target: torch.tensor):
         for name, p in predictions:
-            self.train_acc[name](p.binary_preds, target)
-            self.train_auc[name](p.probs, target)
+            self.get_metric("accuracy", name, True)(p.binary_preds, target)
+            self.get_metric("auc", name, True)(p.probs, target)
             self.log_dict(
                 {
-                    f"train-accuracy/{name}": self.train_acc[name],
-                    f"train-auc/{name}": self.train_auc[name],
+                    f"train-accuracy/{name}": self.get_metric("accuracy", name, True),
+                    f"train-auc/{name}": self.get_metric("auc", name, True),
                 },
                 on_step=True,
                 on_epoch=True,
@@ -499,11 +515,11 @@ class ClassifierMultiResolution(LightningModule):
 
     def log_val_metrics(self, predictions: PredictionsMultiResolution, target: torch.tensor):
         for name, p in predictions:
-            self.val_acc[name](p.binary_preds, target)
-            self.val_auc[name](p.probs, target)
+            self.get_metric("accuracy", name, False)(p.binary_preds, target)
+            self.get_metric("auc", name, False)(p.probs, target)
             self.log(
                 f"val-accuracy/{name}",
-                self.val_acc[name],
+                self.get_metric("accuracy", name, False),
                 on_step=False,
                 on_epoch=True,
                 prog_bar=True,
@@ -511,7 +527,7 @@ class ClassifierMultiResolution(LightningModule):
             )
             self.log(
                 f"val-auc/{name}",
-                self.val_auc[name],
+                self.get_metric("auc", name, False),
                 on_step=False,
                 on_epoch=True,
                 prog_bar=False,

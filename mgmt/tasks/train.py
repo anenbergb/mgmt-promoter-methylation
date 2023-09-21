@@ -22,7 +22,7 @@ matplotlib.use("Agg")
 
 from mgmt.config import get_cfg
 from mgmt.data.dataloader import DataModule
-from mgmt.model.model_module import Classifier
+from mgmt.model.model_module import Classifier, ClassifierMultiResolution
 from mgmt.utils.logger import setup_logger
 from mgmt.utils.progress_bar import ProgressBar
 
@@ -50,7 +50,10 @@ def main(cfg: CfgNode):
     trainer_kwargs = get_trainer_kwargs(cfg)
     trainer = Trainer(**trainer_kwargs, callbacks=callbacks, logger=tb_logger)
 
-    model = Classifier(cfg, steps_per_epoch=steps_per_epoch)
+    if cfg.MODEL.NAME.startswith("MultiResolution"):
+        model = ClassifierMultiResolution(cfg, steps_per_epoch=steps_per_epoch)
+    else:
+        model = Classifier(cfg, steps_per_epoch=steps_per_epoch)
     logger.info(f"Saving outputs to {cfg.OUTPUT_DIR}")
     # Distributed is initialized in fit, not init
     trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.CHECKPOINT.PATH)

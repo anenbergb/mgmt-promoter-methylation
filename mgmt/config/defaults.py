@@ -331,7 +331,7 @@ _C.BACKBONE.BasicBackbone.act = "relu"
 _C.BACKBONE.BasicBackbone.norm = ["group", {"eps": 1e-5, "num_groups": 8}]
 _C.BACKBONE.BasicBackbone.dropout = 0.1
 _C.BACKBONE.BasicBackbone.dropout_dim = 1
-_C.BACKBONE.BasicBackbone.groups = 1
+_C.BACKBONE.BasicBackbone.groups = 1  # dr. chang might actually use 8 here
 
 # Weight parametrization https://pytorch.org/tutorials/intermediate/parametrizations.html
 _C.PARAMETRIZATION = CN()
@@ -345,5 +345,6 @@ _C.PARAMETRIZATION.SpectralNorm.eps = 1e-5
 _C.PARAMETRIZATION.WeightNorm = CN()
 _C.PARAMETRIZATION.Orthogonal = CN()
 _C.PARAMETRIZATION.Orthogonal.use_trivialization = True
+
 _C.METRICS = CN()
 _C.METRICS.THRESHOLD = 0.5
