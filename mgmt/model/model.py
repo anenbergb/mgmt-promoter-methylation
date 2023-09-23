@@ -4,7 +4,6 @@ from fvcore.common.config import CfgNode
 from mgmt.model.basic_backbone import BasicBackbone
 from mgmt.model.efficientnet import EfficientNet
 from mgmt.model.multiresolution import MultiResolutionWithMask
-
 from mgmt.model.parametrizations import make_conv_parametrization_function
 
 

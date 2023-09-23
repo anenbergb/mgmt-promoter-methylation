@@ -7,7 +7,7 @@ _C.SEED_EVERYTHING = 42
 _C.OUTPUT_DIR = "output"
 _C.CHECKPOINT = CN()
 _C.CHECKPOINT.PATH = None  # "best", "last", "hpc", or path to checkpoint
-_C.CHECKPOINT.save_top_k = 3
+_C.CHECKPOINT.save_top_k = 2
 
 _C.SYSTEM = CN()
 _C.SYSTEM.NUM_GPUS = 8
@@ -20,8 +20,8 @@ _C.TRAINER.num_nodes = 1
 _C.TRAINER.precision = "32-true"  # "16-mixed"  # "32-true"
 _C.TRAINER.max_epochs = 10
 # Useful when debugging to only train on portion of dataset
-_C.TRAINER.limit_train_batches = 1.0
-_C.TRAINER.limit_val_batches = 1.0
+_C.TRAINER.limit_train_batches = 10
+_C.TRAINER.limit_val_batches = 3
 # Useful when debugging to overfit on purpose
 _C.TRAINER.overfit_batches = 0.0
 _C.TRAINER.check_val_every_n_epoch = 1

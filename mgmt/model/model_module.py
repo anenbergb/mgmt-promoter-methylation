@@ -1,13 +1,14 @@
+from collections import defaultdict
+from dataclasses import dataclass, field, fields
+
 import numpy as np
 import torch
 import torchio
 import torchmetrics
 from fvcore.common.config import CfgNode
 from lightning.pytorch import LightningDataModule, LightningModule, cli_lightning_logo
+from loguru import logger
 from torch.nn import BCEWithLogitsLoss
-from collections import defaultdict
-
-from dataclasses import dataclass, field, fields
 
 from mgmt.data.subject_utils import get_subjects_from_batch
 from mgmt.data_science.plot_center_mass import add_color_border
@@ -43,6 +44,7 @@ class Classifier(LightningModule):
             - https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_advanced_3.html
         """
         super().__init__()
+        logger.info("Initializing LightningModule: Classifer")
         self.cfg = cfg
         self.steps_per_epoch = steps_per_epoch
 
@@ -369,6 +371,7 @@ class ClassifierMultiResolution(LightningModule):
         steps_per_epoch=50,
     ):
         super().__init__()
+        logger.info("Initializing LightningModule: ClassifierMultiResolution")
         self.cfg = cfg
         self.steps_per_epoch = steps_per_epoch
 

@@ -1,9 +1,9 @@
 """
 Following the example of https://pytorch.org/tutorials/intermediate/parametrizations.html
 """
+import torch.nn.utils.parametrize as parametrize
 from fvcore.common.config import CfgNode
 from torch import nn
-import torch.nn.utils.parametrize as parametrize
 from torch.nn.utils.parametrizations import orthogonal, spectral_norm
 
 
