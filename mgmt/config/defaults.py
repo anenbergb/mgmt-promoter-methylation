@@ -72,8 +72,14 @@ _C.DATA.PICKLE_SUBJECTS = CN()
 _C.DATA.PICKLE_SUBJECTS.folder_path = "/home/bryan/expr/brain_tumor/2023-08-08/preprocess-subjects-crop-64-t1c"
 _C.DATA.PICKLE_SUBJECTS.filter_file_prefix = "P-"
 
-_C.DATA.TRAIN_VAL_RATIO = 0.85
-_C.DATA.TRAIN_VAL_MANUAL_SEED = 10
+_C.DATA.SPLITS = CN()
+_C.DATA.SPLITS.TEST_RATIO = 0.15
+_C.DATA.SPLITS.VAL_RATIO = 0.20
+# training ratio = 1.0 - test_ratio - val_ratio
+_C.DATA.SPLITS.TEST_SEED = 10
+_C.DATA.SPLITS.VAL_SEED = 10
+_C.DATA.SPLITS.FOLD_INDEX = 0
+
 _C.DATA.BATCH_SIZE = 16
 _C.DATA.NUM_WORKERS = 4
 # 'fla', 't1w', 't1c', 't2w', 'concat'
