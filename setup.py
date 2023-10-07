@@ -34,7 +34,8 @@ setup(
         "iopath",
         "seaborn",
         "loguru",
-        "ray[tune]"
+        "ray[tune]",
+        "scikit-learn"
     ],
     extras_require={
         "notebook": [

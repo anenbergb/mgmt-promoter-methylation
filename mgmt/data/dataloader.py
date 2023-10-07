@@ -14,7 +14,9 @@ from torch.utils.data import DataLoader
 from mgmt.data.nifti import load_subjects as nifti_load_subjects
 from mgmt.data.numpy import load_subjects as numpy_load_subjects
 from mgmt.data.pickle import load_subject_pickles
+from mgmt.data.subject_train_test_split import train_test_val_split
 from mgmt.data.subject_transforms import CropLargestTumor
+from mgmt.transforms.pad_to_min_shape import PadToMinShape
 from mgmt.transforms.patch_sampler_probability_map import AddPatchSamplerProbabilityMap
 from mgmt.transforms.rescale_intensity import RescaleIntensity
 from mgmt.transforms.skull_crop import SkullCropTransform
@@ -43,49 +45,6 @@ def get_max_shape(subjects):
     dataset = tio.SubjectsDataset(subjects)
     shapes = np.array([s.spatial_shape for s in dataset])
     return shapes.max(axis=0)
-
-
-def subjects_train_val_split(
-    subjects: list[tio.Subject],
-    train_val_ratio: float = 0.85,
-    generator: Optional[torch.Generator] = torch.default_generator,
-):
-    """
-    Splits the subject list into train and val set, and also ensures
-    that the val set has equal balance between methylated and
-    unmethylated subjects.
-    """
-    if train_val_ratio == 0:
-        return [], subjects
-    elif train_val_ratio == 1:
-        return subjects, []
-    else:
-        assert train_val_ratio > 0 and train_val_ratio < 1
-
-    # sort the subjects first to ensure that all variability comes from the randperm
-    subjects = sorted(subjects, key=lambda x: x.patient_id)
-
-    indices = torch.randperm(len(subjects), generator=generator).tolist()
-    num_val = math.floor(len(subjects) * (1 - train_val_ratio))
-    num_methylated = 0
-    val = []
-    train = []
-    for i in indices:
-        is_methylated = subjects[i].category == "methylated"
-        num_unmethylated = len(val) - num_methylated
-        if len(val) < num_val and (
-            (is_methylated and num_methylated < num_val / 2) or (not is_methylated and num_unmethylated < num_val / 2)
-        ):
-            val.append(subjects[i])
-            num_methylated += int(is_methylated)
-        else:
-            train.append(subjects[i])
-
-    logger.info(
-        f"{len(subjects)} total subjects. {100*train_val_ratio:.2f}% train/val ratio ({len(train)} train, {len(val)} val)"
-    )
-    logger.info(f"val: {num_methylated} methylated, {len(val) - num_methylated} unmethylated")
-    return train, val
 
 
 from torch.utils.data._utils.collate import collate, default_collate_fn_map
@@ -181,11 +140,8 @@ class DataModule(LightningDataModule):
         Args:
             stage: It is used to separate setup logic for trainer.{fit,validate,test,predict}.
         """
-        generator = torch.Generator().manual_seed(self.cfg.DATA.TRAIN_VAL_MANUAL_SEED)
 
-        # TODO: allow processing of test subjects
-        subjects = [s for s in self.subjects if s.get("train_test_split", "train") == "train"]
-        train_subjects, val_subjects = subjects_train_val_split(subjects, self.cfg.DATA.TRAIN_VAL_RATIO, generator)
+        train_subjects, test_subjects, val_subjects = train_test_val_split(self.subjects, self.cfg)
 
         # double check whether this is duplicated for each GPU
         if not self.cfg.DATA.LAZY_LOAD_TRAIN:
@@ -222,6 +178,7 @@ class DataModule(LightningDataModule):
             val_transforms = self.get_transforms(train=False)
 
         self.val_set = tio.SubjectsDataset(val_subjects, transform=val_transforms)
+        self.test_set = tio.SubjectsDataset(test_subjects, transform=val_transforms)
 
     def get_transforms_patches(self, train=True):
         transforms = []
@@ -232,8 +189,14 @@ class DataModule(LightningDataModule):
         if self.cfg.PREPROCESS.RESAMPLE_ENABLED:
             transforms.append(tio.Resample(**self.cfg.PREPROCESS.RESAMPLE))
 
+        # WARNING: If Resample interpolation is lanczos or bspline it can change the range
+        # for pixel values. SkullCropTransform might not work.
+        # simple fix is to use linear interpolation
+        # better fix is to compute a skull mask before resample and save as label image.
         if self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM_ENABLED:
             transforms.append(SkullCropTransform(**self.cfg.PREPROCESS.SKULL_CROP_TRANSFORM))
+
+        transforms.append(PadToMinShape(min_shape=self.cfg.PATCH_BASED_TRAINER.WEIGHTED_SAMPLER.patch_size))
 
         if self.cfg.PREPROCESS.ADD_PATCH_SAMPLER_PROB_MAP_ENABLED:
             transforms.append(
@@ -254,7 +217,7 @@ class DataModule(LightningDataModule):
             transforms.append(tio.RandomAffine(**self.cfg.AUGMENT.RANDOM_AFFINE))
         if train and self.cfg.AUGMENT.RANDOM_GAMMA_ENABLED:
             transforms.append(tio.RandomGamma(**self.cfg.AUGMENT.RANDOM_GAMMA))
-        if train and self.cfg.AUGMENT.RANDOM_BIAS_FIELD:
+        if train and self.cfg.AUGMENT.RANDOM_BIAS_FIELD_ENABLED:
             transforms.append(tio.RandomBiasField(**self.cfg.AUGMENT.RANDOM_BIAS_FIELD))
         if train and self.cfg.AUGMENT.RANDOM_MOTION_ENABLED:
             transforms.append(tio.RandomMotion(**self.cfg.AUGMENT.RANDOM_MOTION))
@@ -275,7 +238,7 @@ class DataModule(LightningDataModule):
             transforms.append(tio.RandomAffine(**self.cfg.AUGMENT.RANDOM_AFFINE))
         if train and self.cfg.AUGMENT.RANDOM_GAMMA_ENABLED:
             transforms.append(tio.RandomGamma(**self.cfg.AUGMENT.RANDOM_GAMMA))
-        if train and self.cfg.AUGMENT.RANDOM_BIAS_FIELD:
+        if train and self.cfg.AUGMENT.RANDOM_BIAS_FIELD_ENABLED:
             transforms.append(tio.RandomBiasField(**self.cfg.AUGMENT.RANDOM_BIAS_FIELD))
         if train and self.cfg.AUGMENT.RANDOM_MOTION_ENABLED:
             transforms.append(tio.RandomMotion(**self.cfg.AUGMENT.RANDOM_MOTION))
@@ -338,6 +301,16 @@ class DataModule(LightningDataModule):
         """
         return DataLoader(
             self.val_set,
+            batch_size=self.cfg.DATA.BATCH_SIZE,
+            num_workers=self.cfg.DATA.NUM_WORKERS,
+            pin_memory=True,
+            shuffle=False,
+            # collate_fn=default_collate_wrapper,
+        )
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_set,
             batch_size=self.cfg.DATA.BATCH_SIZE,
             num_workers=self.cfg.DATA.NUM_WORKERS,
             pin_memory=True,

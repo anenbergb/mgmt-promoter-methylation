@@ -37,7 +37,6 @@ class SkullCropTransform(tio.SpatialTransform):
 
     def apply_transform(self, subject: tio.Subject) -> tio.Subject:
         assert self.mask_image_name in subject
-
         mask = self.get_mask_from_masking_method(
             self.masking_method,
             subject,

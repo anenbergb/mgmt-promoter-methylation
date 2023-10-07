@@ -7,7 +7,7 @@ _C.SEED_EVERYTHING = 42
 _C.OUTPUT_DIR = "output"
 _C.CHECKPOINT = CN()
 _C.CHECKPOINT.PATH = None  # "best", "last", "hpc", or path to checkpoint
-_C.CHECKPOINT.save_top_k = 3
+_C.CHECKPOINT.save_top_k = 2
 
 _C.SYSTEM = CN()
 _C.SYSTEM.NUM_GPUS = 8
@@ -20,8 +20,8 @@ _C.TRAINER.num_nodes = 1
 _C.TRAINER.precision = "32-true"  # "16-mixed"  # "32-true"
 _C.TRAINER.max_epochs = 10
 # Useful when debugging to only train on portion of dataset
-_C.TRAINER.limit_train_batches = 1.0
-_C.TRAINER.limit_val_batches = 1.0
+_C.TRAINER.limit_train_batches = 10
+_C.TRAINER.limit_val_batches = 3
 # Useful when debugging to overfit on purpose
 _C.TRAINER.overfit_batches = 0.0
 _C.TRAINER.check_val_every_n_epoch = 1
@@ -72,8 +72,14 @@ _C.DATA.PICKLE_SUBJECTS = CN()
 _C.DATA.PICKLE_SUBJECTS.folder_path = "/home/bryan/expr/brain_tumor/2023-08-08/preprocess-subjects-crop-64-t1c"
 _C.DATA.PICKLE_SUBJECTS.filter_file_prefix = "P-"
 
-_C.DATA.TRAIN_VAL_RATIO = 0.85
-_C.DATA.TRAIN_VAL_MANUAL_SEED = 10
+_C.DATA.SPLITS = CN()
+_C.DATA.SPLITS.TEST_RATIO = 0.15
+_C.DATA.SPLITS.VAL_RATIO = 0.20
+# training ratio = 1.0 - test_ratio - val_ratio
+_C.DATA.SPLITS.TEST_SEED = 10
+_C.DATA.SPLITS.VAL_SEED = 10
+_C.DATA.SPLITS.FOLD_INDEX = 0
+
 _C.DATA.BATCH_SIZE = 16
 _C.DATA.NUM_WORKERS = 4
 # 'fla', 't1w', 't1c', 't2w', 'concat'
@@ -146,7 +152,7 @@ _C.PREPROCESS.RESAMPLE_ENABLED = False
 _C.PREPROCESS.RESAMPLE = CN()
 # target is the output spacing. 2.0 means divide size by factor of 2.0
 _C.PREPROCESS.RESAMPLE.target = 2.0
-_C.PREPROCESS.RESAMPLE.image_interpolation = "bspline"
+_C.PREPROCESS.RESAMPLE.image_interpolation = "linear"
 _C.PREPROCESS.RESAMPLE.label_interpolation = "nearest"
 
 _C.AUGMENT = CN()
@@ -316,6 +322,35 @@ _C.MODEL.EfficientNet.depth_divisor = 8
 _C.MODEL.EfficientNet.stem_kernel_size = 3
 _C.MODEL.EfficientNet.stem_stride = 2
 _C.MODEL.EfficientNet.head_output_filters = 256
+
+_C.MODEL.MultiResolutionWithMask = CN()
+_C.MODEL.MultiResolutionWithMask.pool = "adaptiveavg"
+_C.MODEL.MultiResolutionWithMask.num_classes = 1
+
+
+_C.BACKBONE = CN()
+_C.BACKBONE.NAME = "BasicBackbone"
+_C.BACKBONE.BasicBackbone = CN()
+_C.BACKBONE.BasicBackbone.block_num_convs = [4, 4, 3, 2, 2]
+_C.BACKBONE.BasicBackbone.block_out_channels = [16, 40, 64, 88, 112]
+_C.BACKBONE.BasicBackbone.act = "relu"
+_C.BACKBONE.BasicBackbone.norm = ["group", {"eps": 1e-5, "num_groups": 8}]
+_C.BACKBONE.BasicBackbone.dropout = 0.1
+_C.BACKBONE.BasicBackbone.dropout_dim = 1
+_C.BACKBONE.BasicBackbone.groups = 1  # dr. chang might actually use 8 here
+
+# Weight parametrization https://pytorch.org/tutorials/intermediate/parametrizations.html
+_C.PARAMETRIZATION = CN()
+_C.PARAMETRIZATION.ENABLED = False
+_C.PARAMETRIZATION.NAME = "Standardization"
+_C.PARAMETRIZATION.Standardization = CN()
+_C.PARAMETRIZATION.Standardization.eps = 1e-5
+_C.PARAMETRIZATION.SpectralNorm = CN()
+_C.PARAMETRIZATION.SpectralNorm.n_power_iterations = 1
+_C.PARAMETRIZATION.SpectralNorm.eps = 1e-5
+_C.PARAMETRIZATION.WeightNorm = CN()
+_C.PARAMETRIZATION.Orthogonal = CN()
+_C.PARAMETRIZATION.Orthogonal.use_trivialization = True
 
 _C.METRICS = CN()
 _C.METRICS.THRESHOLD = 0.5
