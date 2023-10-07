@@ -61,7 +61,7 @@ def subjects_train_val_split(
     elif val_ratio == 1:
         return [], subjects
     else:
-        assert val > 0 and val_ratio < 1
+        assert val_ratio > 0 and val_ratio < 1
 
     # sort the subjects first to ensure that all variability comes from the randperm
     subjects = sorted(subjects, key=lambda x: x.patient_id)
@@ -93,9 +93,11 @@ def train_test_val_split(subjects: list[tio.Subject], cfg: CfgNode):
     We don't have ground-truth labels for the "test" examples.
     Divide the "train" examples into train / test / val split
     """
+    logger.info(f"{len(subjects)} before 'train' filter")
     subjects = [s for s in subjects if s.get("train_test_split", "train") == "train"]
+    logger.info(f"{len(subjects)} after 'train' filter")
     split_cfg = cfg.DATA.SPLITS
-    assert split_cfg.TEST_RATIO + split_cfg.VAL_RAIO < 1.0
+    assert split_cfg.TEST_RATIO + split_cfg.VAL_RATIO < 1.0
     train_ratio = 1.0 - split_cfg.TEST_RATIO - split_cfg.VAL_RATIO
 
     train_val_subjects, test_subjects = subjects_train_val_split(
@@ -111,9 +113,16 @@ def train_test_val_split(subjects: list[tio.Subject], cfg: CfgNode):
         split_cfg.FOLD_INDEX,
         split_cfg.VAL_SEED,
     )
+    actual_train_per = 100 * len(train_subjects) / len(subjects)
+    actual_test_per = 100 * len(test_subjects) / len(subjects)
+    actual_val_per = 100 * len(val_subjects) / len(subjects)
+    sum_train_test_val = len(train_subjects) + len(test_subjects) + len(val_subjects)
+    if sum_train_test_val != len(subjects):
+        logger.warning(f"{len(subjects) - sum_train_test_val} missing subjects after train/test/val split")
     logger.info(
-        f"train {len(train_subjects)} ({100*train_ratio:.1f}%) "
-        f"test {len(test_subjects)} ({100 * split_cfg.TEST_RATIO:.1f}%) "
-        f"val {len(val_subjects)} ({100 * split_cfg.VAL_RATIO:.1f}%)"
+        f"total {len(subjects)}. "
+        f"train {len(train_subjects)} ({100*train_ratio:.1f}% -> {actual_train_per:.1f}%) "
+        f"test {len(test_subjects)} ({100 * split_cfg.TEST_RATIO:.1f}% -> {actual_test_per:.1f}%) "
+        f"val {len(val_subjects)} ({100 * split_cfg.VAL_RATIO:.1f}% -> {actual_val_per:.1f}%)"
     )
     return train_subjects, test_subjects, val_subjects

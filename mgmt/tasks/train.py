@@ -74,7 +74,8 @@ def get_trainer_kwargs(cfg: CfgNode):
 def get_steps_per_epoch(cfg: CfgNode, datamodule: DataModule) -> int:
     datamodule.prepare_data()
     num_subjects = len(datamodule.subjects)
-    num_train = np.ceil(cfg.DATA.TRAIN_VAL_RATIO * num_subjects)
+    train_ratio = 1.0 - cfg.DATA.SPLITS.TEST_RATIO - cfg.DATA.SPLITS.VAL_RATIO
+    num_train = np.ceil(train_ratio * num_subjects)
     if cfg.PATCH_BASED_TRAINER.ENABLED:
         num_train *= cfg.PATCH_BASED_TRAINER.QUEUE.samples_per_volume
     steps_per_epoch = int(np.ceil(num_train / cfg.DATA.BATCH_SIZE))
