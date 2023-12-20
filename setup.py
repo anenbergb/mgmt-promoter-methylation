@@ -7,6 +7,7 @@ setup(
     author="Bryan Anenberg",
     author_email="anenbergb@gmail.com",
     description="Python libraries developed for the MGMT Promoter Methylation Classification project.",
+    python_requires=">=3.8",
     packages=find_packages(),
     install_requires=[
         "numpy",
@@ -45,6 +46,6 @@ setup(
             "plotly",
             "seaborn",
         ],
-        "dev": ["black", "mypy", "flake8", "isort"],
+        "dev": ["black", "mypy", "flake8", "isort", "ipdb"],
     },
 )

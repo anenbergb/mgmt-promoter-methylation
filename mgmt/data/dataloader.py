@@ -1,7 +1,5 @@
 import copy
 import csv
-import math
-from typing import Dict, Optional
 
 import numpy as np
 import torch
@@ -12,8 +10,9 @@ from loguru import logger
 from torch.utils.data import DataLoader
 
 from mgmt.data.nifti import load_subjects as nifti_load_subjects
+from mgmt.data.nifti import nifti_count_subjects
 from mgmt.data.numpy import load_subjects as numpy_load_subjects
-from mgmt.data.pickle import load_subject_pickles
+from mgmt.data.pickle import load_subject_pickles, count_subject_pickles
 from mgmt.data.subject_train_test_split import train_test_val_split
 from mgmt.data.subject_transforms import CropLargestTumor
 from mgmt.transforms.pad_to_min_shape import PadToMinShape
@@ -101,6 +100,7 @@ class DataModule(LightningDataModule):
         prepare_data is called within a single process on CPU.
         https://lightning.ai/docs/pytorch/stable/data/datamodule.html#prepare-data
         """
+        print(f"prepare_data: {self.cfg.DATA.SOURCE}")
         if self.cfg.DATA.SOURCE == "numpy":
             subjects = numpy_load_subjects(self.cfg.NUMPY.FILEPATH_NPZ)
             exs = load_patient_exclusion(self.cfg.DATA.PATIENT_EXCLUSION_CSV)
@@ -121,6 +121,25 @@ class DataModule(LightningDataModule):
             self.subjects = load_subject_pickles(**self.cfg.DATA.PICKLE_SUBJECTS)
 
         self.add_combined_image()
+
+    def get_steps_per_epoch(self) -> int:
+        if self.cfg.DATA.SOURCE == "numpy":
+            logger.warning("DATA.SOURCE == 'numpy'. Must load data in order to count number of subjects")
+            subjects = numpy_load_subjects(self.cfg.NUMPY.FILEPATH_NPZ)
+            exs = load_patient_exclusion(self.cfg.DATA.PATIENT_EXCLUSION_CSV)
+            num_subjects = len([s for s in subjects if s.patient_id not in exs])
+        elif self.cfg.DATA.SOURCE == "nifti":
+            num_subjects = nifti_count_subjects(self.cfg.DATA.NIFTI.FOLDER_PATH)
+        elif self.cfg.DATA.SOURCE == "pickle-subjects":
+            num_subjects = count_subject_pickles(**self.cfg.DATA.PICKLE_SUBJECTS)
+        logger.info(f"Identified {num_subjects} total subjects")
+        train_ratio = 1.0 - self.cfg.DATA.SPLITS.TEST_RATIO - self.cfg.DATA.SPLITS.VAL_RATIO
+        num_train = np.ceil(train_ratio * num_subjects)
+        if self.cfg.PATCH_BASED_TRAINER.ENABLED:
+            num_train *= self.cfg.PATCH_BASED_TRAINER.QUEUE.samples_per_volume
+        steps_per_epoch = int(np.ceil(num_train / self.cfg.DATA.BATCH_SIZE))
+        logger.info(f"{steps_per_epoch} steps per epoch")
+        return steps_per_epoch
 
     def add_combined_image(self):
         if self.cfg.DATA.MODALITY == "concat":
@@ -153,7 +172,6 @@ class DataModule(LightningDataModule):
                 self.get_transforms_patches(train=True) if self.cfg.PATCH_BASED_TRAINER.TRANSFORMS_ENABLED else None
             )
             self.train_set = tio.SubjectsDataset(train_subjects, transform=train_transforms)
-
             # sampler = tio.data.LabelSampler(**self.cfg.PATCH_BASED_TRAINER.LABEL_SAMPLER)
             sampler = tio.data.WeightedSampler(**self.cfg.PATCH_BASED_TRAINER.WEIGHTED_SAMPLER)
 

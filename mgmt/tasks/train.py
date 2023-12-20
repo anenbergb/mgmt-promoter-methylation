@@ -42,7 +42,7 @@ def main(cfg: CfgNode):
 
     logger.info("Initializing Data Module")
     datamodule = DataModule(cfg)
-    steps_per_epoch = get_steps_per_epoch(cfg, datamodule)
+    steps_per_epoch = datamodule.get_steps_per_epoch()
     # TODO: make this work when you're resuming from a checkpoint
     max_steps = steps_per_epoch * cfg.TRAINER.max_epochs
 
@@ -69,17 +69,6 @@ def get_trainer_kwargs(cfg: CfgNode):
     elif kwargs["profiler"] == "advanced":
         kwargs["profiler"] = AdvancedProfiler(**cfg.PROFILER.ADVANCED)
     return kwargs
-
-
-def get_steps_per_epoch(cfg: CfgNode, datamodule: DataModule) -> int:
-    datamodule.prepare_data()
-    num_subjects = len(datamodule.subjects)
-    train_ratio = 1.0 - cfg.DATA.SPLITS.TEST_RATIO - cfg.DATA.SPLITS.VAL_RATIO
-    num_train = np.ceil(train_ratio * num_subjects)
-    if cfg.PATCH_BASED_TRAINER.ENABLED:
-        num_train *= cfg.PATCH_BASED_TRAINER.QUEUE.samples_per_volume
-    steps_per_epoch = int(np.ceil(num_train / cfg.DATA.BATCH_SIZE))
-    return steps_per_epoch
 
 
 def get_callbacks(cfg: CfgNode, max_steps: int, model: LightningModule) -> list[Callback]:

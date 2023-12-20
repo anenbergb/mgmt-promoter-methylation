@@ -4,7 +4,7 @@ from typing import Optional
 
 import torchio as tio
 
-from mgmt.data.constants import MODALITIES, MODALITY2NAME
+from mgmt.data.constants import MODALITY2NAME
 
 
 def get_file_name(basename: str, extensions: list[str] = [".nii", ".nii.gz"]) -> Optional[str]:
@@ -87,3 +87,8 @@ def load_subjects(
         subjects.append(make_subject(subject_folder, category_id, modality, train_test_split))
     subjects = sorted(subjects, key=lambda x: x.patient_id_str)
     return subjects
+
+
+def nifti_count_subjects(dataset_folder: str) -> int:
+    subject_folders = get_subject_folders(dataset_folder)
+    return len(subject_folders)
