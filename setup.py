@@ -11,8 +11,6 @@ setup(
     packages=find_packages(),
     install_requires=[
         "numpy",
-        "torch",
-        "torchvision",
         "monai",
         "tensorboard",
         "tensorboard-plugin-3d",
@@ -39,6 +37,10 @@ setup(
         "scikit-learn"
     ],
     extras_require={
+        "torch": [
+            "torch",
+            "torchvision",
+        ],
         "notebook": [
             "jupyter",
             "itkwidgets",
