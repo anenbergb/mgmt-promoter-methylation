@@ -196,7 +196,10 @@ class DataModule(LightningDataModule):
             val_transforms = self.get_transforms(train=False)
 
         self.val_set = tio.SubjectsDataset(val_subjects, transform=val_transforms)
-        self.test_set = tio.SubjectsDataset(test_subjects, transform=val_transforms)
+        if len(test_subjects) > 0:
+            self.test_set = tio.SubjectsDataset(test_subjects, transform=val_transforms)
+        else:
+            self.test_set = None
 
     def get_transforms_patches(self, train=True):
         transforms = []

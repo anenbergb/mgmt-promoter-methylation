@@ -73,8 +73,8 @@ _C.DATA.PICKLE_SUBJECTS.folder_path = "/home/bryan/expr/brain_tumor/2023-08-08/p
 _C.DATA.PICKLE_SUBJECTS.filter_file_prefix = "P-"
 
 _C.DATA.SPLITS = CN()
-_C.DATA.SPLITS.TEST_RATIO = 0.15
-_C.DATA.SPLITS.VAL_RATIO = 0.20
+_C.DATA.SPLITS.TEST_RATIO = 0.0
+_C.DATA.SPLITS.VAL_RATIO = 0.25
 # training ratio = 1.0 - test_ratio - val_ratio
 _C.DATA.SPLITS.TEST_SEED = 10
 _C.DATA.SPLITS.VAL_SEED = 10
