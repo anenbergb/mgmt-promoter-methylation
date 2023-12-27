@@ -1,5 +1,4 @@
 # Utilities for loading subjects from a numpy npz
-from typing import Dict, Optional
 
 import numpy as np
 import torchio as tio

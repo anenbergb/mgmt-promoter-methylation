@@ -2,7 +2,8 @@ DATA:
   MODALITY: concat
   SOURCE: pickle-subjects
   PICKLE_SUBJECTS:
-    folder_path: /home/bryan/expr/brain_tumor/preprocess-subjects-v2/resample-2.0-crop-64
+    # folder_path: /home/bryan/expr/brain_tumor/preprocess-subjects-v2/resample-2.0-crop-64
+    folder_path: /home/banenber/expr/brain_tumor/preprocess-subjects-v2/resample-2.0-crop-64
   LAZY_LOAD_TRAIN: True
 PATCH_BASED_TRAINER:
   ENABLED: True
@@ -10,9 +11,9 @@ PATCH_BASED_TRAINER:
   WEIGHTED_SAMPLER:
     patch_size: [64, 64, 64]
   QUEUE:
-    # 491 * 5 = 2455
-    samples_per_volume: 5
-    max_length: 1000
+    # 577 * 5 = 2455
+    samples_per_volume: 25
+    max_length: 2500
 VAL_INFERENCE:
   MODE: CropLargestTumor
   CROP_LARGEST_TUMOR:

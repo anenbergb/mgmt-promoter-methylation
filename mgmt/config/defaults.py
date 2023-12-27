@@ -20,8 +20,8 @@ _C.TRAINER.num_nodes = 1
 _C.TRAINER.precision = "32-true"  # "16-mixed"  # "32-true"
 _C.TRAINER.max_epochs = 10
 # Useful when debugging to only train on portion of dataset
-_C.TRAINER.limit_train_batches = 10
-_C.TRAINER.limit_val_batches = 3
+_C.TRAINER.limit_train_batches = 1.0
+_C.TRAINER.limit_val_batches = 1.0
 # Useful when debugging to overfit on purpose
 _C.TRAINER.overfit_batches = 0.0
 _C.TRAINER.check_val_every_n_epoch = 1
@@ -73,8 +73,8 @@ _C.DATA.PICKLE_SUBJECTS.folder_path = "/home/bryan/expr/brain_tumor/2023-08-08/p
 _C.DATA.PICKLE_SUBJECTS.filter_file_prefix = "P-"
 
 _C.DATA.SPLITS = CN()
-_C.DATA.SPLITS.TEST_RATIO = 0.15
-_C.DATA.SPLITS.VAL_RATIO = 0.20
+_C.DATA.SPLITS.TEST_RATIO = 0.0
+_C.DATA.SPLITS.VAL_RATIO = 0.25
 # training ratio = 1.0 - test_ratio - val_ratio
 _C.DATA.SPLITS.TEST_SEED = 10
 _C.DATA.SPLITS.VAL_SEED = 10
