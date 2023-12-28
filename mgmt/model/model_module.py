@@ -1,5 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, field, fields
+from typing import Any
 
 import numpy as np
 import torch
@@ -364,6 +365,15 @@ class ValidationOutput:
         )
 
 
+def make_concat_tensor(batch_dict: dict[str, Any], modality: list[str] = ["t2w"]):
+    tensors = []
+    for m in modality:
+        tensors.append(batch_dict[m][torchio.DATA])
+    tensor = torch.cat(tensors, dim=1)
+    for m in modality:
+        batch_dict[m][torchio.DATA] = batch_dict[m][torchio.DATA].to("cpu")
+    return tensor
+
 class ClassifierMultiResolution(LightningModule):
     def __init__(
         self,
@@ -429,7 +439,12 @@ class ClassifierMultiResolution(LightningModule):
         return losses
 
     def infer_batch(self, batch):
-        x = batch[self.cfg.DATA.MODALITY][torchio.DATA]
+        if "patch_sampling_probability_map" in batch:
+            batch.pop("patch_sampling_probability_map")
+        if self.cfg.DATA.MODALITY == "concat":
+            x = make_concat_tensor(batch, self.cfg.DATA.MODALITY_CONCAT)
+        else:
+            x = batch[self.cfg.DATA.MODALITY][torchio.DATA]
         target = batch["category_id"]
         tumor_mask = (batch["tumor"][torchio.DATA] > 0).type(torch.float)
         # CHECK: that backprop doesn't update tumor_mask
@@ -525,7 +540,7 @@ class ClassifierMultiResolution(LightningModule):
                 self.get_metric("accuracy", name, False),
                 on_step=False,
                 on_epoch=True,
-                prog_bar=True,
+                prog_bar=False,
                 batch_size=self.cfg.DATA.BATCH_SIZE,
             )
             self.log(

@@ -120,7 +120,7 @@ class DataModule(LightningDataModule):
         elif self.cfg.DATA.SOURCE == "pickle-subjects":
             self.subjects = load_subject_pickles(**self.cfg.DATA.PICKLE_SUBJECTS)
 
-        self.add_combined_image()
+        # self.add_combined_image()
 
     def get_steps_per_epoch(self) -> int:
         if self.cfg.DATA.SOURCE == "numpy":
@@ -182,6 +182,7 @@ class DataModule(LightningDataModule):
                 num_workers=self.cfg.DATA.NUM_WORKERS,
                 **self.cfg.PATCH_BASED_TRAINER.QUEUE,
             )
+            # self.train_patches_queue.get_max_memory_pretty(self.train_set[0])
             val_transforms = (
                 self.get_transforms_patches(train=False)
                 if self.cfg.PATCH_BASED_TRAINER.TRANSFORMS_ENABLED

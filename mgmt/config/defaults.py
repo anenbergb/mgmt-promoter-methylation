@@ -71,6 +71,8 @@ _C.DATA.NUMPY.PATIENT_EXCLUSION_CSV = "/home/bryan/src/mgmt-promoter-methylation
 _C.DATA.PICKLE_SUBJECTS = CN()
 _C.DATA.PICKLE_SUBJECTS.folder_path = "/home/bryan/expr/brain_tumor/2023-08-08/preprocess-subjects-crop-64-t1c"
 _C.DATA.PICKLE_SUBJECTS.filter_file_prefix = "P-"
+_C.DATA.PICKLE_SUBJECTS.remove_paths = True
+_C.DATA.PICKLE_SUBJECTS.cache_dir = ""
 
 _C.DATA.SPLITS = CN()
 _C.DATA.SPLITS.TEST_RATIO = 0.0
