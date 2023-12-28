@@ -146,7 +146,7 @@ class Classifier(LightningModule):
         loss = self.criterion(logits, target.to(torch.float))
         self.train_acc(binary_preds, target)
         self.train_auc(preds, target)
-        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
+        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=False, batch_size=self.cfg.DATA.BATCH_SIZE)
         self.log_dict(
             {
                 "train/accuracy": self.train_acc,
@@ -176,13 +176,13 @@ class Classifier(LightningModule):
         loss = self.criterion(logits, target.to(torch.float))
         self.val_acc(binary_preds, target)
         self.val_auc(preds, target)
-        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
+        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False, batch_size=self.cfg.DATA.BATCH_SIZE)
         self.log(
             "val/accuracy",
             self.val_acc,
             on_step=False,
             on_epoch=True,
-            prog_bar=True,
+            prog_bar=False,
             batch_size=self.cfg.DATA.BATCH_SIZE,
         )
         self.log(
@@ -374,6 +374,7 @@ def make_concat_tensor(batch_dict: dict[str, Any], modality: list[str] = ["t2w"]
         batch_dict[m][torchio.DATA] = batch_dict[m][torchio.DATA].to("cpu")
     return tensor
 
+
 class ClassifierMultiResolution(LightningModule):
     def __init__(
         self,
@@ -471,7 +472,7 @@ class ClassifierMultiResolution(LightningModule):
             total_loss,
             on_step=True,
             on_epoch=True,
-            prog_bar=True,
+            prog_bar=False,
             batch_size=self.cfg.DATA.BATCH_SIZE,
         )
 
@@ -512,7 +513,7 @@ class ClassifierMultiResolution(LightningModule):
             total_loss,
             on_step=False,
             on_epoch=True,
-            prog_bar=True,
+            prog_bar=False,
             batch_size=self.cfg.DATA.BATCH_SIZE,
         )
 

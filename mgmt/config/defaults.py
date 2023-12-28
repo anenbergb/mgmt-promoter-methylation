@@ -18,6 +18,7 @@ _C.TRAINER.strategy = "auto"
 _C.TRAINER.devices = "auto"
 _C.TRAINER.num_nodes = 1
 _C.TRAINER.precision = "32-true"  # "16-mixed"  # "32-true"
+_C.TRAINER.fast_dev_run = False
 _C.TRAINER.max_epochs = 10
 # Useful when debugging to only train on portion of dataset
 _C.TRAINER.limit_train_batches = 1.0
@@ -25,8 +26,13 @@ _C.TRAINER.limit_val_batches = 1.0
 # Useful when debugging to overfit on purpose
 _C.TRAINER.overfit_batches = 0.0
 _C.TRAINER.check_val_every_n_epoch = 1
+_C.TRAINER.num_sanity_val_steps = 1
 _C.TRAINER.log_every_n_steps = 50
+_C.TRAINER.enable_progress_bar = True
+_C.TRAINER.enable_model_summary = True
 _C.TRAINER.accumulate_grad_batches = 1
+_C.TRAINER.gradient_clip_val = None
+_C.TRAINER.gradient_clip_algorithm = "norm"
 # TODO: consider adding gradient clipping
 #   gradient_clip_val: null
 #   gradient_clip_algorithm: null
@@ -72,7 +78,7 @@ _C.DATA.PICKLE_SUBJECTS = CN()
 _C.DATA.PICKLE_SUBJECTS.folder_path = "/home/bryan/expr/brain_tumor/2023-08-08/preprocess-subjects-crop-64-t1c"
 _C.DATA.PICKLE_SUBJECTS.filter_file_prefix = "P-"
 _C.DATA.PICKLE_SUBJECTS.remove_paths = True
-_C.DATA.PICKLE_SUBJECTS.cache_dir = ""
+_C.DATA.PICKLE_SUBJECTS.cache_dir = "[[]"
 
 _C.DATA.SPLITS = CN()
 _C.DATA.SPLITS.TEST_RATIO = 0.0
