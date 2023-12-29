@@ -529,7 +529,7 @@ class ClassifierMultiResolution(LightningModule):
         # only visualize first and final epoch
         # TODO: make sure this works with restart
         # if self.current_epoch in (0, self.cfg.TRAINER.max_epochs - 1):
-            # self.visualize_predictions(batch, output)
+        # self.visualize_predictions(batch, output)
 
         self.validation_step_outputs.append(output)
 

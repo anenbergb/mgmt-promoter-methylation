@@ -12,6 +12,7 @@ def load_subject_pickles(
     filter_file_prefix: str | None = "P-",
     remove_paths: bool = True,
     cache_dir: str = "",
+    cache: bool = True,
 ) -> list[tio.Subject]:
     subject_pickles = glob(os.path.join(folder_path, "*.pkl"))
     subjects = []
@@ -23,7 +24,8 @@ def load_subject_pickles(
             subject = pickle.load(f)
         subject = subject_remove_paths(subject)
         cache_subject = CacheableSubject.from_subject(subject, cache_dir=cache_dir)
-        cache_subject.cache()
+        if cache:
+            cache_subject.cache()
         subjects.append(cache_subject)
     return subjects
 
