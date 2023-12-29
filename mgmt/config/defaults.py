@@ -26,7 +26,7 @@ _C.TRAINER.limit_val_batches = 1.0
 # Useful when debugging to overfit on purpose
 _C.TRAINER.overfit_batches = 0.0
 _C.TRAINER.check_val_every_n_epoch = 1
-_C.TRAINER.num_sanity_val_steps = 1
+_C.TRAINER.num_sanity_val_steps = 0
 _C.TRAINER.log_every_n_steps = 50
 _C.TRAINER.enable_progress_bar = True
 _C.TRAINER.enable_model_summary = True
@@ -50,10 +50,10 @@ _C.TRAINER.reload_dataloaders_every_n_epochs = 0
 
 _C.PROFILER = CN()
 _C.PROFILER.SIMPLE = CN()
-_C.PROFILER.SIMPLE.filename = "simple-profiler.txt"
+_C.PROFILER.SIMPLE.filename = "simple-profiler"
 _C.PROFILER.SIMPLE.extended = True
 _C.PROFILER.ADVANCED = CN()
-_C.PROFILER.ADVANCED.filename = "advanced-profiler.txt"
+_C.PROFILER.ADVANCED.filename = "advanced-profiler"
 # his can be used to limit the number of functions reported for each action.
 # either an integer (to select a count of lines),
 # or a decimal fraction between 0.0 and 1.0 inclusive (to select a percentage of lines)
@@ -89,7 +89,8 @@ _C.DATA.SPLITS.VAL_SEED = 10
 _C.DATA.SPLITS.FOLD_INDEX = 0
 
 _C.DATA.BATCH_SIZE = 16
-_C.DATA.NUM_WORKERS = 4
+_C.DATA.NUM_WORKERS = 0
+_C.DATA.VAL_NUM_WORKERS = 4
 # 'fla', 't1w', 't1c', 't2w', 'concat'
 _C.DATA.MODALITY = "t1c"  # "concat"
 _C.DATA.MODALITY_CONCAT = ["fla", "t1w", "t1c", "t2w"]

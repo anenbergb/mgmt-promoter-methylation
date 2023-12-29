@@ -34,7 +34,7 @@ class CacheableSubject(tio.Subject):
         self.cached = True
 
     def load_cache(self):
-        logger.info(f"Loading {self.cache_path}")
+        # logger.info(f"Loading {self.cache_path}")
         with open(self.cache_path, "rb") as f:
             images = pickle.load(f)
         for name, image in images.items():
@@ -43,7 +43,8 @@ class CacheableSubject(tio.Subject):
 
     def load(self):
         if self.cache_loaded:
-            logger.info(f"Cache already loaded")
+            # logger.info(f"Cache already loaded")
+            return
         elif self.cached:
             self.load_cache()
         else:

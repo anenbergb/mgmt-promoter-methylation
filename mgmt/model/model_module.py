@@ -369,6 +369,7 @@ def make_concat_tensor(batch_dict: dict[str, Any], modality: list[str] = ["t2w"]
     tensors = []
     for m in modality:
         tensors.append(batch_dict[m][torchio.DATA])
+
     tensor = torch.cat(tensors, dim=1)
     for m in modality:
         batch_dict[m][torchio.DATA] = batch_dict[m][torchio.DATA].to("cpu")
@@ -527,8 +528,8 @@ class ClassifierMultiResolution(LightningModule):
 
         # only visualize first and final epoch
         # TODO: make sure this works with restart
-        if self.current_epoch in (0, self.cfg.TRAINER.max_epochs - 1):
-            self.visualize_predictions(batch, output)
+        # if self.current_epoch in (0, self.cfg.TRAINER.max_epochs - 1):
+            # self.visualize_predictions(batch, output)
 
         self.validation_step_outputs.append(output)
 
