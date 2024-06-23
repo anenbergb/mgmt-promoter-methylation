@@ -29,3 +29,5 @@ However different medical applications use different definitions of this 3D basi
     * from left towards right
     * from posterior towarsd anterior
     * from inferior towards superior
+
+https://nipy.org/nibabel/image_orientation.html
