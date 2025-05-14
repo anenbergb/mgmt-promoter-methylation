@@ -10,6 +10,23 @@ References
 * Repetition Time (TR) - amount of time between successive pulse sequences applied to the same slice
 * Time to Echo (TE) - time between delivery of RF pulse and receipt of echo signal
 
+| Feature / Purpose                         | FLAIR                             | T1w                                | T1Gd                               | T2                                 |
+|------------------------------------------|-----------------------------------|------------------------------------|------------------------------------|-------------------------------------|
+| **Full Name**                            | Fluid Attenuated Inversion Recovery | T1-weighted (pre-contrast)         | T1-weighted with Gadolinium        | T2-weighted                        |
+| **Primary Use**                          | Highlight lesions near CSF         | Structural anatomy, brain detail  | Detect blood-brain barrier disruption | Pathology, fluid detection        |
+| **CSF Appearance**                       | **Dark** (suppressed)              | Dark                               | Dark                               | **Bright**                         |
+| **Gray Matter Appearance**               | Intermediate                       | Gray                               | Gray                               | Lighter gray                       |
+| **White Matter Appearance**              | Darker than gray matter            | Bright                             | Bright                             | Darker than gray matter            |
+| **Lesions/Edema**                        | **Bright**                         | Iso- or hypointense                | Enhanced if contrast uptake        | **Bright**                         |
+| **Tumors**                               | Bright if associated with edema    | May appear dark                    | **Enhance with contrast**          | Bright with associated edema       |
+| **Multiple Sclerosis Plaques**           | **Easily visible** (periventricular) | Poorly seen                        | Enhanced if active                 | Seen but less distinct than FLAIR  |
+| **Ischemia/Stroke**                      | Subacute: hyperintense             | Early infarct hard to detect       | Enhances subacute infarct edges   | Acute infarct appears bright       |
+| **Hemorrhage**                           | Poor for early detection           | Early blood may be hyperintense    | Enhancing rim (if subacute)        | Variable signal based on stage     |
+| **Contrast Agent Used**                  | No                                 | No                                 | **Yes (Gadolinium)**               | No                                 |
+| **Key Strength**                         | Detecting lesions near CSF, MS     | High-resolution anatomy            | Visualizing contrast-enhancing lesions | Detecting edema, fluid, pathology |
+| **CSF Suppression**                      | **Yes**                            | No                                 | No                                 | No                                 |
+
+
 ## T1 vs. T2 relaxation times
 * T1 (longitudinal relaxation time)
   *  time constant which determines the rate at which excited protons return to equilibrium. 
@@ -25,11 +42,14 @@ The contrast and brightness in the tissue is determined by the T1 properties of 
 ## T2-weighted images
 * longer TE
 * longer TR
+
 The contrast and brightness in the tissue is determined by the T2 properties of the tissue
 ## FLAIR (Fluid Attenuated Inversion Recovery)
 similar to T2-weighted
 * very long TE
 * very long TR
+
+
 Abnormalities remain bright but normal CSF fluid is attenuated and made dark.
 
 |                 | TR (msec) | TE (msec) |
