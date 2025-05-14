@@ -2,8 +2,8 @@ DATA:
   MODALITY: concat
   SOURCE: pickle-subjects
   PICKLE_SUBJECTS:
-    # folder_path: /home/bryan/expr/brain_tumor/preprocess-subjects-v2/resample-2.0-crop-64
-    folder_path: /home/banenber/expr/brain_tumor/preprocess-subjects-v2/resample-2.0-crop-64
+    folder_path: /home/bryan/expr/brain_tumor/preprocess-subjects-v2/resample-2.0-crop-64
+    # folder_path: /home/banenber/expr/brain_tumor/preprocess-subjects-v2/resample-2.0-crop-64
   LAZY_LOAD_TRAIN: True
 PATCH_BASED_TRAINER:
   ENABLED: True
