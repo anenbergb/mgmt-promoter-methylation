@@ -33,7 +33,7 @@ This project was performed in collaboration with [Peter Chang](https://www.facul
   - Output scan metadata and classification predictions
 
 ### Challenges
-- Small dataset (~700 samples) with significant heterogeneity across hospitals.
+- Small dataset (~500 samples) with significant heterogeneity across hospitals.
 - Difficult to interpret model predictions due to complex visual features not easily recognized by non-radiologists.
 - High intra- and inter-patient variability in MRI appearance.
 
@@ -41,6 +41,15 @@ This project was performed in collaboration with [Peter Chang](https://www.facul
 - [PyTorch Lightning](https://www.lightning.ai/)
 - [MONAI (Medical Open Network for AI)](https://monai.io/)
 - [TorchIO](https://torchio.readthedocs.io/)
+
+## Tumor Visualization
+- visualization of the full dataset form the axial view across all 4 MRI modalities
+- the displayed slice of the 3D MRI volume is the tumor "center of mass" slice
+- the yellow dot is the "center of mass" X,Y coordinate
+
+![tumor-center-mass](https://github.com/user-attachments/assets/b5026b4e-49ed-4752-8bef-928f7d0f66bd)
+
+
 
 ## Installation 
 ```
