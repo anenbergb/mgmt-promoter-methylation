@@ -10,6 +10,8 @@ References
 * Repetition Time (TR) - amount of time between successive pulse sequences applied to the same slice
 * Time to Echo (TE) - time between delivery of RF pulse and receipt of echo signal
 
+## Comparing MRI Scan Types
+
 | Feature / Purpose                         | FLAIR                             | T1w                                | T1Gd                               | T2                                 |
 |------------------------------------------|-----------------------------------|------------------------------------|------------------------------------|-------------------------------------|
 | **Full Name**                            | Fluid Attenuated Inversion Recovery | T1-weighted (pre-contrast)         | T1-weighted with Gadolinium        | T2-weighted                        |
