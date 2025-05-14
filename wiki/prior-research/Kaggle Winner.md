@@ -5,7 +5,7 @@ References
 * https://github.com/FirasBaba/rsna-resnet10
 
 ## Model Details
-* He uses simple model (Resnet10-50) because biggerm models give noisy results
+* He uses simple model (Resnet10-50) because bigger models give noisy results
 * https://monai.io/ Monai library could be useful for preprocessing stuff
 * Ensembling didn’t improve score
 * Train 100 models (train model 20 times, 5-fold cross validation, take the 5-fold average). Select top 5 ideas+models and 
