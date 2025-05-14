@@ -51,9 +51,19 @@ from torch.utils.data._utils.collate import collate, default_collate_fn_map
 
 def default_collate_wrapper(batch):
     print("default collate!!!")
+
     import ipdb
 
     ipdb.set_trace()
+    return collate(batch, collate_fn_map=default_collate_fn_map)
+
+
+def patch_collate(batch):
+    remove_keys = ["location", "patch_sampling_probability_map"]
+    for x in batch:
+        for key in remove_keys:
+            if key in x:
+                x.remove_image(key)
     return collate(batch, collate_fn_map=default_collate_fn_map)
 
 
@@ -120,7 +130,7 @@ class DataModule(LightningDataModule):
         elif self.cfg.DATA.SOURCE == "pickle-subjects":
             self.subjects = load_subject_pickles(**self.cfg.DATA.PICKLE_SUBJECTS)
 
-        self.add_combined_image()
+        # self.add_combined_image()
 
     def get_steps_per_epoch(self) -> int:
         if self.cfg.DATA.SOURCE == "numpy":
@@ -182,6 +192,8 @@ class DataModule(LightningDataModule):
                 num_workers=self.cfg.DATA.NUM_WORKERS,
                 **self.cfg.PATCH_BASED_TRAINER.QUEUE,
             )
+            queue_mem = self.train_patches_queue.get_max_memory_pretty(self.train_set[0])
+            logger.info(f"Estimated queue size: {queue_mem}")
             val_transforms = (
                 self.get_transforms_patches(train=False)
                 if self.cfg.PATCH_BASED_TRAINER.TRANSFORMS_ENABLED
@@ -307,6 +319,7 @@ class DataModule(LightningDataModule):
                 self.train_patches_queue,
                 batch_size=self.cfg.DATA.BATCH_SIZE,
                 num_workers=0,  # this must be 0
+                collate_fn=patch_collate,
             )
 
         return DataLoader(
@@ -323,7 +336,7 @@ class DataModule(LightningDataModule):
         return DataLoader(
             self.val_set,
             batch_size=self.cfg.DATA.BATCH_SIZE,
-            num_workers=self.cfg.DATA.NUM_WORKERS,
+            num_workers=self.cfg.DATA.VAL_NUM_WORKERS,
             pin_memory=True,
             shuffle=False,
             # collate_fn=default_collate_wrapper,
@@ -333,7 +346,7 @@ class DataModule(LightningDataModule):
         return DataLoader(
             self.test_set,
             batch_size=self.cfg.DATA.BATCH_SIZE,
-            num_workers=self.cfg.DATA.NUM_WORKERS,
+            num_workers=self.cfg.DATA.VAL_NUM_WORKERS,
             pin_memory=True,
             shuffle=False,
             # collate_fn=default_collate_wrapper,

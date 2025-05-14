@@ -1,5 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, field, fields
+from typing import Any
 
 import numpy as np
 import torch
@@ -145,7 +146,7 @@ class Classifier(LightningModule):
         loss = self.criterion(logits, target.to(torch.float))
         self.train_acc(binary_preds, target)
         self.train_auc(preds, target)
-        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
+        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=False, batch_size=self.cfg.DATA.BATCH_SIZE)
         self.log_dict(
             {
                 "train/accuracy": self.train_acc,
@@ -175,13 +176,13 @@ class Classifier(LightningModule):
         loss = self.criterion(logits, target.to(torch.float))
         self.val_acc(binary_preds, target)
         self.val_auc(preds, target)
-        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=self.cfg.DATA.BATCH_SIZE)
+        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False, batch_size=self.cfg.DATA.BATCH_SIZE)
         self.log(
             "val/accuracy",
             self.val_acc,
             on_step=False,
             on_epoch=True,
-            prog_bar=True,
+            prog_bar=False,
             batch_size=self.cfg.DATA.BATCH_SIZE,
         )
         self.log(
@@ -364,6 +365,17 @@ class ValidationOutput:
         )
 
 
+def make_concat_tensor(batch_dict: dict[str, Any], modality: list[str] = ["t2w"]):
+    tensors = []
+    for m in modality:
+        tensors.append(batch_dict[m][torchio.DATA])
+
+    tensor = torch.cat(tensors, dim=1)
+    for m in modality:
+        batch_dict[m][torchio.DATA] = batch_dict[m][torchio.DATA].to("cpu")
+    return tensor
+
+
 class ClassifierMultiResolution(LightningModule):
     def __init__(
         self,
@@ -429,7 +441,12 @@ class ClassifierMultiResolution(LightningModule):
         return losses
 
     def infer_batch(self, batch):
-        x = batch[self.cfg.DATA.MODALITY][torchio.DATA]
+        if "patch_sampling_probability_map" in batch:
+            batch.pop("patch_sampling_probability_map")
+        if self.cfg.DATA.MODALITY == "concat":
+            x = make_concat_tensor(batch, self.cfg.DATA.MODALITY_CONCAT)
+        else:
+            x = batch[self.cfg.DATA.MODALITY][torchio.DATA]
         target = batch["category_id"]
         tumor_mask = (batch["tumor"][torchio.DATA] > 0).type(torch.float)
         # CHECK: that backprop doesn't update tumor_mask
@@ -456,7 +473,7 @@ class ClassifierMultiResolution(LightningModule):
             total_loss,
             on_step=True,
             on_epoch=True,
-            prog_bar=True,
+            prog_bar=False,
             batch_size=self.cfg.DATA.BATCH_SIZE,
         )
 
@@ -497,7 +514,7 @@ class ClassifierMultiResolution(LightningModule):
             total_loss,
             on_step=False,
             on_epoch=True,
-            prog_bar=True,
+            prog_bar=False,
             batch_size=self.cfg.DATA.BATCH_SIZE,
         )
 
@@ -511,8 +528,8 @@ class ClassifierMultiResolution(LightningModule):
 
         # only visualize first and final epoch
         # TODO: make sure this works with restart
-        if self.current_epoch in (0, self.cfg.TRAINER.max_epochs - 1):
-            self.visualize_predictions(batch, output)
+        # if self.current_epoch in (0, self.cfg.TRAINER.max_epochs - 1):
+        # self.visualize_predictions(batch, output)
 
         self.validation_step_outputs.append(output)
 
@@ -525,7 +542,7 @@ class ClassifierMultiResolution(LightningModule):
                 self.get_metric("accuracy", name, False),
                 on_step=False,
                 on_epoch=True,
-                prog_bar=True,
+                prog_bar=False,
                 batch_size=self.cfg.DATA.BATCH_SIZE,
             )
             self.log(

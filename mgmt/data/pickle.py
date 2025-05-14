@@ -4,10 +4,15 @@ from glob import glob
 
 import torchio as tio
 from tqdm import tqdm
+from mgmt.data.cacheable_subject import CacheableSubject
 
 
 def load_subject_pickles(
-    folder_path: str, filter_file_prefix: str | None = "P-", remove_paths: bool = True
+    folder_path: str,
+    filter_file_prefix: str | None = "P-",
+    remove_paths: bool = True,
+    cache_dir: str = "",
+    cache: bool = True,
 ) -> list[tio.Subject]:
     subject_pickles = glob(os.path.join(folder_path, "*.pkl"))
     subjects = []
@@ -18,7 +23,10 @@ def load_subject_pickles(
         with open(subject_pickle, "rb") as f:
             subject = pickle.load(f)
         subject = subject_remove_paths(subject)
-        subjects.append(subject)
+        cache_subject = CacheableSubject.from_subject(subject, cache_dir=cache_dir)
+        if cache:
+            cache_subject.cache()
+        subjects.append(cache_subject)
     return subjects
 
 
@@ -28,7 +36,7 @@ def subject_remove_paths(subject: tio.Subject) -> tio.Subject:
     return subject
 
 
-def count_subject_pickles(folder_path: str, filter_file_prefix: str | None = "P-") -> int:
+def count_subject_pickles(folder_path: str, filter_file_prefix: str | None = "P-", **kwargs) -> int:
     subject_pickles = glob(os.path.join(folder_path, "*.pkl"))
     subjects = []
     counter = 0
